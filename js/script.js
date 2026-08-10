@@ -97,13 +97,44 @@ function getNow() {
 }
 
 /**
- * 安全的HTML净化（白名单方案，2026-08-10 重写）
+ * 安全的HTML净化（白名单方案）
  *
- * 旧版为黑名单正则过滤，可被 HTML 实体编码绕过（如 on&#x65;rror、jav&#x61;script:）。
- * 新版使用 DOMParser 解析 + 显式白名单：只保留 b/i/u/em/strong 纯文本标签，
- * 所有属性一律丢弃，其余标签降级为纯文本。不存在黑名单绕过问题。
+ * 只保留 b/i/u/em/strong/span/br 标签：
+ * - span 仅保留过滤后的 style 属性（白名单 CSS 属性，可单独控制每条名言的字体大小/颜色等）
+ * - 所有事件属性、脚本、伪协议一律丢弃
  * 返回 DocumentFragment，由调用方 appendChild 渲染，全程不使用 innerHTML 写入用户内容。
  */
+const ALLOWED_TAGS = new Set(['B', 'I', 'U', 'EM', 'STRONG', 'SPAN', 'BR']);
+const ALLOWED_CSS_PROPS = new Set([
+    'color', 'background-color', 'font-size', 'font-family', 'font-weight',
+    'font-style', 'text-decoration', 'text-align', 'line-height',
+    'letter-spacing', 'text-shadow',
+]);
+const DANGER_CSS_VALUES = [
+    'url(', 'expression', 'javascript:', 'vbscript:', 'behavior',
+    '-moz-binding', '@import', 'position', 'z-index', 'content', '\\',
+];
+
+/**
+ * 过滤 CSS 声明串（与后端 HtmlSanitizer::filterCss 同规则）
+ */
+function filterStyle(styleStr) {
+    if (!styleStr || styleStr.length > 500) return '';
+    const decls = [];
+    String(styleStr).split(';').forEach(decl => {
+        const idx = decl.indexOf(':');
+        if (idx < 0) return;
+        const prop = decl.slice(0, idx).trim().toLowerCase();
+        const value = decl.slice(idx + 1).trim();
+        if (!ALLOWED_CSS_PROPS.has(prop)) return;
+        if (value.length > 100) return;
+        const lower = value.toLowerCase();
+        if (DANGER_CSS_VALUES.some(d => lower.includes(d))) return;
+        decls.push(prop + ': ' + value);
+    });
+    return decls.join('; ');
+}
+
 function sanitizeHtml(text) {
     const frag = document.createDocumentFragment();
     if (!text || typeof text !== 'string') return frag;
@@ -111,8 +142,6 @@ function sanitizeHtml(text) {
         text = text.substring(0, 10000);
         console.warn('sanitizeHtml: 输入超过10000字符，已截断');
     }
-
-    const ALLOWED_TAGS = new Set(['B', 'I', 'U', 'EM', 'STRONG']);
 
     let doc;
     try {
@@ -123,7 +152,7 @@ function sanitizeHtml(text) {
         return frag;
     }
 
-    // 递归：文本节点保留；白名单标签重建（无属性）；其他标签只保留其文本
+    // 递归：文本节点保留；白名单标签重建（span 仅保留过滤后的 style）；其他标签只保留其文本
     const walk = (node, target) => {
         node.childNodes.forEach(child => {
             if (child.nodeType === Node.TEXT_NODE) {
@@ -131,6 +160,10 @@ function sanitizeHtml(text) {
             } else if (child.nodeType === Node.ELEMENT_NODE) {
                 if (ALLOWED_TAGS.has(child.tagName)) {
                     const el = document.createElement(child.tagName);
+                    if (child.tagName === 'SPAN') {
+                        const st = filterStyle(child.getAttribute('style') || '');
+                        if (st) el.setAttribute('style', st);
+                    }
                     walk(child, el);
                     target.appendChild(el);
                 } else {
@@ -798,7 +831,7 @@ class SecondsCountdownApp {
         const totalSeconds = Math.floor(diff / 1000);
         const el = document.querySelector('.countdown-display');
         if (el) {
-            el.textContent = `距离高考还有 ${totalSeconds.toLocaleString()} 秒`;
+            el.textContent = `${totalSeconds.toLocaleString()} 秒`;
         }
     }
 
