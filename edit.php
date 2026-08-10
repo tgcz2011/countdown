@@ -480,7 +480,7 @@ endif;
             <h3>🌐 同步设置（同时修改两个页面）</h3>
             <div class="sync-fields">
                 <div class="form-group">
-                    <label for="sync_target_date">中考日期</label>
+                    <label for="sync_target_date">高考日期</label>
                     <input type="date" id="sync_target_date" name="sync_target_date">
                 </div>
                 <div class="form-group">
@@ -503,7 +503,7 @@ endif;
         <div id="main-form" class="form-container active">
             <form onsubmit="saveConfig(event, 'main')">
                 <div class="form-group">
-                    <label for="main_target_date">中考日期</label>
+                    <label for="main_target_date">高考日期</label>
                     <input type="date" id="main_target_date" name="target_date" required>
                 </div>
 
@@ -691,7 +691,7 @@ endif;
         <div id="seconds-form" class="form-container">
             <form onsubmit="saveConfig(event, 'seconds')">
                 <div class="form-group">
-                    <label for="seconds_target_date">中考日期</label>
+                    <label for="seconds_target_date">高考日期</label>
                     <input type="date" id="seconds_target_date" name="target_date" required>
                 </div>
 
@@ -908,7 +908,7 @@ endif;
             const prefix = page === 'main' ? 'main_' : 'seconds_';
 
             // 基础字段
-            document.getElementById(prefix + 'target_date').value = config.target_date || '2026-06-26';
+            document.getElementById(prefix + 'target_date').value = config.target_date || '2027-06-07';
 
             // 标题字体
             document.getElementById(prefix + 'title_font_size').value = config.title_font_size || (page === 'main' ? '32' : '28');
@@ -1079,7 +1079,7 @@ endif;
 
         // 初始化同步设置区域
         function initSyncSection() {
-            document.getElementById('sync_target_date').value = mainConfig.target_date || '2026-06-26';
+            document.getElementById('sync_target_date').value = mainConfig.target_date || '2027-06-07';
             document.getElementById('sync_messages').value = mainConfig.messages ?
                 mainConfig.messages.replace(/\|/g, '\n') : '';
         }

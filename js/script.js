@@ -252,9 +252,9 @@ class CountdownApp {
      * 获取默认配置（当API失败时使用）
      */
     getDefaultConfig() {
-        const defaultDate = new Date('2026-06-26T00:00:00+08:00');
+        const defaultDate = new Date('2027-06-07T00:00:00+08:00');
         return {
-            target_date: '2026-06-26',
+            target_date: '2027-06-07',
             target_timestamp: defaultDate.getTime(),
             title_font_size: '32',
             title_font_color: '#ffffff',
@@ -505,7 +505,7 @@ class CountdownApp {
         const cdEl = document.querySelector('.countdown-display');
         if (cdEl) cdEl.textContent = '时间到！';
         const mtEl = document.querySelector('.motivation-text');
-        if (mtEl) mtEl.textContent = '中考加油！';
+        if (mtEl) mtEl.textContent = '高考加油！';
     }
 }
 
@@ -624,9 +624,9 @@ class SecondsCountdownApp {
     }
 
     getDefaultConfig() {
-        const defaultDate = new Date('2026-06-26T00:00:00+08:00');
+        const defaultDate = new Date('2027-06-07T00:00:00+08:00');
         return {
-            target_date: '2026-06-26',
+            target_date: '2027-06-07',
             target_timestamp: defaultDate.getTime(),
             title_font_size: '28',
             title_font_color: '#ffffff',
@@ -798,7 +798,7 @@ class SecondsCountdownApp {
         const totalSeconds = Math.floor(diff / 1000);
         const el = document.querySelector('.countdown-display');
         if (el) {
-            el.textContent = `距离中考还有 ${totalSeconds.toLocaleString()} 秒`;
+            el.textContent = `距离高考还有 ${totalSeconds.toLocaleString()} 秒`;
         }
     }
 
@@ -808,7 +808,7 @@ class SecondsCountdownApp {
         const cdEl = document.querySelector('.countdown-display');
         if (cdEl) cdEl.textContent = '时间到！';
         const mtEl = document.querySelector('.motivation-text');
-        if (mtEl) mtEl.textContent = '中考加油！';
+        if (mtEl) mtEl.textContent = '高考加油！';
     }
 }
 
