@@ -50,11 +50,10 @@ try {
         exit;
     }
 
-    // 如果通过，合并到两个页面的messages中
+    // 通过后合并到统一配置（主页面与秒数页面共用）
     if ($action === 'approve') {
-        $mergeMain = $database->mergeApprovedQuotes('main');
-        $mergeSeconds = $database->mergeApprovedQuotes('seconds');
-        if (!$mergeMain || !$mergeSeconds) {
+        $mergeOk = $database->mergeApprovedQuotes();
+        if (!$mergeOk) {
             error_log('合并名言到页面配置时出现问题');
         }
     }

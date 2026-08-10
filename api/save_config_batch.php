@@ -85,8 +85,8 @@ try {
         }
     }
 
-    // 批量保存（事务保护）
-    $success = $database->saveConfigBatch($pageType, $config);
+    // 批量保存（统一配置，不再区分页面；事务保护）
+    $success = $database->saveConfigBatch($config);
 
     if ($success) {
         echo json_encode(['success' => true, 'message' => '所有配置已保存']);

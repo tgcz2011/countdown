@@ -70,8 +70,8 @@ try {
         $configValue = mb_substr($configValue, 0, 20000);
     }
 
-    // 保存配置
-    $success = $database->updateConfig($pageType, $configKey, $configValue);
+    // 保存配置（统一配置，不再区分页面）
+    $success = $database->updateConfig($configKey, $configValue);
 
     if ($success) {
         echo json_encode(['success' => true, 'message' => '保存成功']);

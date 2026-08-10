@@ -26,29 +26,24 @@ set_error_handler(function($severity, $message, $file, $line) {
 try {
     require_once __DIR__ . '/../includes/Database.php';
 
-    $page = $_GET['page'] ?? 'main';
-    if (!in_array($page, ['main', 'seconds'])) {
-        $page = 'main';
-    }
-
     $database = Database::getInstance();
-    $config = $database->getConfig($page);
+    $config = $database->getConfig();
 
     // 确保必要字段存在
     $defaults = [
         'target_date' => '2027-06-07',
-        'title_font_size' => $page === 'main' ? '32' : '28',
+        'title_font_size' => '32',
         'title_font_color' => '#ffffff',
         'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
         'title_font_url' => '',
-        'countdown_font_size' => $page === 'main' ? '55' : '50',
-        'countdown_font_color' => $page === 'main' ? '#00a761' : '#2b7a05',
+        'countdown_font_size' => '55',
+        'countdown_font_color' => '#00a761',
         'countdown_font_family' => '"Courier New", monospace',
         'countdown_font_url' => '',
-        'bg_color' => $page === 'main' ? '#1a3a4e' : '#222bdf',
+        'bg_color' => '#1a3a4e',
         'bg_image' => '',
         'bg_image_mode' => 'cover',
-        'message_font_size' => $page === 'main' ? '20' : '18',
+        'message_font_size' => '20',
         'message_font_color' => '#ffffff',
         'message_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
         'message_font_url' => '',
