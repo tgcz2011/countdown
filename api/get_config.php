@@ -36,7 +36,7 @@ try {
 
     // 确保必要字段存在
     $defaults = [
-        'target_date' => '2026-06-26',
+        'target_date' => '2027-06-07',
         'title_font_size' => $page === 'main' ? '32' : '28',
         'title_font_color' => '#ffffff',
         'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',

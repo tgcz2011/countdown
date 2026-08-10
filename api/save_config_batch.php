@@ -6,7 +6,7 @@
  * {
  *     "page_type": "main" | "seconds",
  *     "config": {
- *         "target_date": "2026-06-26",
+ *         "target_date": "2027-06-07",
  *         "messages": "...",
  *         ...
  *     }

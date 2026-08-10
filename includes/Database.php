@@ -163,7 +163,7 @@ class Database {
     private function insertDefaultConfig($pageType) {
         if ($pageType === 'main') {
             $defaults = [
-                'target_date' => '2026-06-26',
+                'target_date' => '2027-06-07',
                 'title_font_size' => '32',
                 'title_font_color' => '#ffffff',
                 'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
@@ -190,7 +190,7 @@ class Database {
             ];
         } else {
             $defaults = [
-                'target_date' => '2026-06-26',
+                'target_date' => '2027-06-07',
                 'title_font_size' => '28',
                 'title_font_color' => '#ffffff',
                 'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
@@ -269,7 +269,7 @@ class Database {
 
             // 确保关键字段存在
             if (!isset($config['target_date']) || empty($config['target_date'])) {
-                $config['target_date'] = '2026-06-26';
+                $config['target_date'] = '2027-06-07';
             }
 
             return $config;
@@ -300,7 +300,7 @@ class Database {
     private function getDefaultConfig($pageType) {
         if ($pageType === 'main') {
             return [
-                'target_date' => '2026-06-26',
+                'target_date' => '2027-06-07',
                 'title_font_size' => '32',
                 'title_font_color' => '#ffffff',
                 'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
@@ -327,7 +327,7 @@ class Database {
             ];
         } else {
             return [
-                'target_date' => '2026-06-26',
+                'target_date' => '2027-06-07',
                 'title_font_size' => '28',
                 'title_font_color' => '#ffffff',
                 'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
@@ -425,7 +425,7 @@ class Database {
     /**
      * 批量更新配置（事务保护，全部成功或全部回滚）
      * @param string $pageType 页面类型（main/seconds）
-     * @param array $config 配置键值对，如 ['target_date' => '2026-06-26', 'messages' => '...']
+     * @param array $config 配置键值对，如 ['target_date' => '2027-06-07', 'messages' => '...']
      * @return bool 全部成功返回 true，任一失败自动回滚并返回 false
      */
     public function saveConfigBatch($pageType, $config) {
