@@ -25,6 +25,6 @@
     <div class="current-time"></div>
 
     <!-- JavaScript -->
-    <script src="js/script.js?v=20260810b"></script>
+    <script src="js/script.js?v=20260810c"></script>
 </body>
 </html>
