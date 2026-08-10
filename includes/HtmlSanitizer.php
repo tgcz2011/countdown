@@ -10,7 +10,20 @@
 class HtmlSanitizer {
 
     /** 允许保留的标签（白名单，全小写） */
-    private static $allowedTags = ['b', 'i', 'u', 'em', 'strong'];
+    private static $allowedTags = ['b', 'i', 'u', 'em', 'strong', 'span', 'br'];
+
+    /** 允许的 CSS 属性（用于 span style，单独控制每条名言的字体大小/颜色等） */
+    private static $allowedCssProps = [
+        'color', 'background-color', 'font-size', 'font-family', 'font-weight',
+        'font-style', 'text-decoration', 'text-align', 'line-height',
+        'letter-spacing', 'text-shadow',
+    ];
+
+    /** 危险 CSS 值片段（命中即丢弃该声明） */
+    private static $dangerCssValues = [
+        'url(', 'expression', 'javascript:', 'vbscript:', 'behavior',
+        '-moz-binding', '@import', 'position', 'z-index', 'content', '\\',
+    ];
 
     /** 危险容器：标签与内容整体丢弃 */
     private static $dropTags = ['script', 'style', 'iframe', 'object', 'embed', 'svg', 'math'];
@@ -20,6 +33,37 @@ class HtmlSanitizer {
 
     /** 最大嵌套深度（防御深递归） */
     private static $maxDepth = 32;
+
+    /**
+     * 过滤 CSS 声明串：只保留白名单属性，丢弃危险值
+     * @param string|null $css 原始 style 值
+     * @return string 过滤后的 style 值（可能为空）
+     */
+    private static function filterCss($css) {
+        if ($css === null || $css === '') return '';
+        $css = html_entity_decode((string)$css, ENT_QUOTES, 'UTF-8');
+        if (strlen($css) > 500) return '';
+
+        $out = [];
+        foreach (explode(';', $css) as $decl) {
+            $decl = trim($decl);
+            if ($decl === '') continue;
+            $parts = explode(':', $decl, 2);
+            if (count($parts) !== 2) continue;
+            $prop = strtolower(trim($parts[0]));
+            $value = trim($parts[1]);
+            if (!in_array($prop, self::$allowedCssProps, true)) continue;
+            if (strlen($value) > 100) continue;
+            $lower = strtolower($value);
+            $danger = false;
+            foreach (self::$dangerCssValues as $d) {
+                if (strpos($lower, $d) !== false) { $danger = true; break; }
+            }
+            if ($danger) continue;
+            $out[] = $prop . ': ' . $value;
+        }
+        return implode('; ', $out);
+    }
 
     /**
      * 净化 HTML 字符串
@@ -45,7 +89,8 @@ class HtmlSanitizer {
     private static function findClosing($s, $start, $tag) {
         $len = strlen($s);
         $depth = 1;
-        $openRe = '/^<' . preg_quote($tag, '/') . '>/i';
+        // 开始标签允许带属性（如 <span style="...">）
+        $openRe = '/^<' . preg_quote($tag, '/') . '(?:\s[^>]*)?>/i';
         $closeRe = '/^<\/' . preg_quote($tag, '/') . '>/i';
         $i = $start;
         while ($i < $len) {
@@ -64,7 +109,7 @@ class HtmlSanitizer {
             }
             if (preg_match($openRe, $sub)) {
                 $depth++;
-                $i += strlen('<' . $tag . '>');
+                $i += strlen($sub[0]);
                 continue;
             }
             $i++;
@@ -112,12 +157,39 @@ class HtmlSanitizer {
                         continue;
                     }
 
-                    if (in_array($tag, self::$allowedTags, true) && trim($attrs) === '') {
-                        // 白名单标签且无属性：查找匹配的闭合标签（支持同标签嵌套），递归解析内容
+                    if (in_array($tag, self::$allowedTags, true)) {
+                        if ($tag === 'br') {
+                            // br 是空元素，直接输出
+                            $out .= '<br>';
+                            $i += $tagLen;
+                            continue;
+                        }
+
+                        $styleAttr = '';
+                        if ($tag === 'span') {
+                            // span 只允许 style 属性（过滤后保留），其余属性一律丢弃
+                            if (preg_match('/style\s*=\s*"([^"]*)"/i', $attrs, $m)) {
+                                $styleAttr = self::filterCss($m[1]);
+                            } elseif (preg_match("/style\s*=\s*'([^']*)'/i", $attrs, $m)) {
+                                $styleAttr = self::filterCss($m[1]);
+                            }
+                            if ($styleAttr === '' && trim($attrs) !== '') {
+                                // span 带非 style 属性，或 style 全被过滤：剥掉标签只留内容
+                                $i += $tagLen;
+                                continue;
+                            }
+                        } elseif (trim($attrs) !== '') {
+                            // 其他白名单标签带属性（如 <b onclick>）：剥掉标签只留内容
+                            $i += $tagLen;
+                            continue;
+                        }
+
+                        // 查找匹配的闭合标签（支持同标签嵌套），递归解析内容
                         $end = self::findClosing($s, $i + $tagLen, $tag);
                         if ($end !== false) {
                             $inner = substr($s, $i + $tagLen, $end - $i - $tagLen);
-                            $out .= '<' . $tag . '>' . self::parse($inner, $depth + 1) . '</' . $tag . '>';
+                            $attrOut = $styleAttr !== '' ? ' style="' . $styleAttr . '"' : '';
+                            $out .= '<' . $tag . $attrOut . '>' . self::parse($inner, $depth + 1) . '</' . $tag . '>';
                             $i = $end + strlen($closeTag);
                             continue;
                         }

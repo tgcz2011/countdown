@@ -248,7 +248,7 @@
                     <label for="content">名言内容 *</label>
                     <textarea id="content" name="content" maxlength="500" placeholder="输入你想分享的励志话语..." required oninput="updateCharCount()"></textarea>
                     <div class="char-count"><span id="charCount">0</span>/500</div>
-                    <small>支持使用 &lt;b&gt;&lt;i&gt;&lt;u&gt;&lt;em&gt;&lt;strong&gt; 等基本HTML标签美化文字</small>
+                    <small>支持使用 &lt;b&gt;&lt;i&gt;&lt;u&gt;&lt;em&gt;&lt;strong&gt; 等标签，以及 &lt;span style="color:red"&gt; 单独给文字上色、&lt;br&gt; 换行</small>
                 </div>
                 <div class="form-group">
                     <label for="submitter_name">你的名字（可选）</label>
