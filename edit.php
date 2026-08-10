@@ -500,7 +500,7 @@ endif;
         <div id="main-form" class="form-container active">
             <form onsubmit="saveConfig(event)">
                 <div class="form-group">
-                    <label for="main_target_date">高考日期</label>
+                    <label for="main_target_date">中考日期</label>
                     <input type="date" id="main_target_date" name="target_date" required>
                 </div>
 
@@ -713,7 +713,7 @@ endif;
             const prefix = 'main_';
 
             // 基础字段
-            document.getElementById(prefix + 'target_date').value = config.target_date || '2027-06-07';
+            document.getElementById(prefix + 'target_date').value = config.target_date || '2026-06-26';
 
             // 标题字体
             document.getElementById(prefix + 'title_font_size').value = config.title_font_size || '32';

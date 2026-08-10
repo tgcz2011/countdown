@@ -162,7 +162,7 @@ class Database {
      */
     private function insertDefaultConfig() {
             $defaults = [
-                'target_date' => '2027-06-07',
+                'target_date' => '2026-06-26',
                 'title_font_size' => '32',
                 'title_font_color' => '#ffffff',
                 'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
@@ -240,7 +240,7 @@ class Database {
 
             // 确保关键字段存在
             if (!isset($config['target_date']) || empty($config['target_date'])) {
-                $config['target_date'] = '2027-06-07';
+                $config['target_date'] = '2026-06-26';
             }
 
             return $config;
@@ -270,7 +270,7 @@ class Database {
      */
     private function getDefaultConfig() {
             return [
-                'target_date' => '2027-06-07',
+                'target_date' => '2026-06-26',
                 'title_font_size' => '32',
                 'title_font_color' => '#ffffff',
                 'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
@@ -367,7 +367,7 @@ class Database {
     /**
      * 批量更新配置（事务保护，全部成功或全部回滚）
      * @param string $pageType 页面类型（main/seconds）
-     * @param array $config 配置键值对，如 ['target_date' => '2027-06-07', 'messages' => '...']
+     * @param array $config 配置键值对，如 ['target_date' => '2026-06-26', 'messages' => '...']
      * @return bool 全部成功返回 true，任一失败自动回滚并返回 false
      */
     public function saveConfigBatch($config) {
