@@ -831,7 +831,14 @@ class SecondsCountdownApp {
         const totalSeconds = Math.floor(diff / 1000);
         const el = document.querySelector('.countdown-display');
         if (el) {
-            el.textContent = `${totalSeconds.toLocaleString()} 秒`;
+            // 数字与单位分离：单位"秒"使用标题字体渲染（2026-08-10）
+            el.textContent = '';
+            el.appendChild(document.createTextNode(totalSeconds.toLocaleString() + ' '));
+            const unit = document.createElement('span');
+            unit.className = 'countdown-unit';
+            unit.textContent = '秒';
+            unit.style.fontFamily = this.config.title_font_family || 'Arial, "Microsoft YaHei", sans-serif';
+            el.appendChild(unit);
         }
     }
 
