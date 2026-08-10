@@ -1,0 +1,174 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: none;
+    -moz-text-size-adjust: none;
+    -ms-text-size-adjust: none;
+    text-size-adjust: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    font-family: 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
+    font-size: 16px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    transition: background 0.5s ease;
+    overflow: hidden;
+}
+
+/* 背景层 */
+.background-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    background-color: #1a3a4e;
+    transition: background 0.5s ease;
+}
+
+.background-layer.image-mode {
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #000;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* 倒计时容器 */
+.countdown-container {
+    text-align: center;
+    padding: 0 40px;
+    animation: fadeInUp 1s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 倒计时标题 */
+.countdown-title {
+    font-size: 2rem;
+    color: #fff;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+/* 倒计时数字 */
+.countdown-display {
+    font-weight: bold;
+    letter-spacing: 5px;
+    text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+    margin: 0;
+    font-family: 'Courier New', monospace;
+}
+
+/* 分隔符 */
+.countdown-separator {
+    display: inline-block;
+    margin: 0 5px;
+}
+
+/* 励志话语轮播 */
+.motivation-container {
+    max-width: 800px;
+    margin-top: 8px;
+    text-align: center;
+    position: relative;
+}
+
+.motivation-text {
+    font-size: 1.5rem;
+    color: #fff;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    opacity: 1;
+    transition: opacity 0.8s ease;
+    line-height: 1.6;
+    padding: 0 20px;
+}
+
+.motivation-text.fade-out {
+    opacity: 0;
+}
+
+/* 当前时间显示 */
+.current-time {
+    position: fixed;
+    bottom: 12px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    pointer-events: none;
+    z-index: 10;
+    letter-spacing: 1px;
+}
+
+/* 响应式 - 只调整间距，不覆盖字体大小（字体由JS控制） */
+@media screen and (max-width: 768px) {
+    .countdown-display {
+        letter-spacing: 2px;
+    }
+    .countdown-title {
+        font-size: 1.5rem;
+    }
+    .motivation-text {
+        font-size: 1.2rem;
+    }
+    .countdown-container {
+        padding: 0 20px;
+    }
+    .motivation-container {
+        margin-top: 8px;
+    }
+    .current-time {
+        font-size: 11px;
+        bottom: 8px;
+    }
+}
+
+/* 浏览器兼容性修复 - 确保flexbox在所有浏览器一致 */
+@supports not (display: flex) {
+    body {
+        display: block;
+        text-align: center;
+        padding-top: 20%;
+    }
+    .countdown-container,
+    .motivation-container,
+    .current-time {
+        display: block;
+    }
+}
+
+/* 确保容器尺寸在不同浏览器一致 */
+.countdown-container,
+.motivation-container {
+    width: 100%;
+    max-width: 100%;
+    position: relative;
+    z-index: 1;
+}

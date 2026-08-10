@@ -1,0 +1,29 @@
+# 环境变量文件（包含密码等敏感信息，不能提交）
+.env
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# 临时文件
+*.log
+temp/
+
+# 本地运维脚本（含 FTP 凭据，禁止入库）
+_ftp_*.py
+
+# 调试/测试脚本（无鉴权信息泄漏面，禁止入库）
+test_connection.php
+debug_*.php
+font_debug.php
+test_api.html
+
+# AI 编码工具会话残留
+.omo/
+.sisyphus/
