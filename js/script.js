@@ -284,7 +284,7 @@ class CountdownApp {
      */
     async loadConfig() {
         try {
-            const response = await fetch('api/get_config.php?page=main');
+            const response = await fetch('api/get_config.php');
             const data = await response.json();
             if (data && data.error) {
                 if (this.config === null) {
@@ -598,7 +598,7 @@ class SecondsCountdownApp {
      */
     async loadConfig() {
         try {
-            const response = await fetch('api/get_config.php?page=seconds');
+            const response = await fetch('api/get_config.php');
             const data = await response.json();
             if (data && data.error) {
                 if (this.config === null) {

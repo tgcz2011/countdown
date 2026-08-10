@@ -27,3 +27,4 @@ test_api.html
 # AI 编码工具会话残留
 .omo/
 .sisyphus/
+*.bak

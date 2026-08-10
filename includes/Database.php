@@ -160,8 +160,7 @@ class Database {
     /**
      * 插入默认配置
      */
-    private function insertDefaultConfig($pageType) {
-        if ($pageType === 'main') {
+    private function insertDefaultConfig() {
             $defaults = [
                 'target_date' => '2027-06-07',
                 'title_font_size' => '32',
@@ -188,34 +187,6 @@ class Database {
                 'motivation_gap' => '4',
                 'messages' => '奋斗不息，成功必将到来。|不要等待机会，而要创造机会。|坚持到底，永不放弃。|付出总有回报，梦想终会实现。'
             ];
-        } else {
-            $defaults = [
-                'target_date' => '2027-06-07',
-                'title_font_size' => '28',
-                'title_font_color' => '#ffffff',
-                'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
-                'title_font_url' => '',
-                'countdown_font_size' => '50',
-                'countdown_font_color' => '#2b7a05',
-                'countdown_font_family' => '"Courier New", monospace',
-                'countdown_font_url' => '',
-                'bg_color' => '#222bdf',
-                'bg_image' => '',
-                'bg_image_mode' => 'cover',
-                'message_font_size' => '18',
-                'message_font_color' => '#ffffff',
-                'message_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
-                'message_font_url' => '',
-                'message_container_width' => '90%',
-                'message_interval' => '5000',
-                'time_font_size' => '13',
-                'time_font_color' => '#ffffff',
-                'time_font_family' => '"Courier New", monospace',
-                'time_bottom' => '12',
-                'motivation_gap' => '4',
-                'messages' => '奋斗不息，成功必将到来。|不要等待机会，而要创造机会。|坚持到底，永不放弃。|付出总有回报，梦想终会实现。'
-            ];
-        }
 
         foreach ($defaults as $key => $value) {
             $encoded = $this->encodeValue($value);
@@ -223,7 +194,7 @@ class Database {
                     VALUES (?, ?, ?)";
             try {
                 $stmt = $this->connection->prepare($sql);
-                $stmt->execute([$pageType, $key, $encoded]);
+                $stmt->execute(['main', $key, $encoded]);
             } catch (PDOException $e) {
                 error_log('插入默认配置失败: ' . $e->getMessage());
             }
@@ -237,10 +208,10 @@ class Database {
     /**
      * 获取指定页面的所有配置
      */
-    public function getConfig($pageType) {
+    public function getConfig() {
         // 如果数据库不可用，直接返回默认配置
         if (!$this->connection) {
-            return $this->getDefaultConfig($pageType);
+            return $this->getDefaultConfig('main');
         }
 
         try {
@@ -249,7 +220,7 @@ class Database {
             $stmt = $this->connection->prepare(
                 "SELECT config_key, config_value FROM countdown_config WHERE page_type = ?"
             );
-            $stmt->execute([$pageType]);
+            $stmt->execute(['main']);
             $result = $stmt->fetchAll();
 
             $config = [];
@@ -264,7 +235,7 @@ class Database {
             }
 
             // 获取默认配置并合并
-            $defaultConfig = $this->getDefaultConfig($pageType);
+            $defaultConfig = $this->getDefaultConfig('main');
             $config = array_merge($defaultConfig, $config);
 
             // 确保关键字段存在
@@ -276,7 +247,7 @@ class Database {
         } catch (Throwable $e) {
             $this->initError = $e->getMessage();
             error_log('获取配置失败: ' . $e->getMessage());
-            return $this->getDefaultConfig($pageType);
+            return $this->getDefaultConfig('main');
         }
     }
 
@@ -297,8 +268,7 @@ class Database {
     /**
      * 获取默认配置
      */
-    private function getDefaultConfig($pageType) {
-        if ($pageType === 'main') {
+    private function getDefaultConfig() {
             return [
                 'target_date' => '2027-06-07',
                 'title_font_size' => '32',
@@ -325,34 +295,6 @@ class Database {
                 'motivation_gap' => '4',
                 'messages' => '奋斗不息，成功必将到来。|不要等待机会，而要创造机会。|坚持到底，永不放弃。|付出总有回报，梦想终会实现。'
             ];
-        } else {
-            return [
-                'target_date' => '2027-06-07',
-                'title_font_size' => '28',
-                'title_font_color' => '#ffffff',
-                'title_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
-                'title_font_url' => '',
-                'countdown_font_size' => '50',
-                'countdown_font_color' => '#2b7a05',
-                'countdown_font_family' => '"Courier New", monospace',
-                'countdown_font_url' => '',
-                'bg_color' => '#222bdf',
-                'bg_image' => '',
-                'bg_image_mode' => 'cover',
-                'message_font_size' => '18',
-                'message_font_color' => '#ffffff',
-                'message_font_family' => 'Arial, "Microsoft YaHei", sans-serif',
-                'message_font_url' => '',
-                'message_container_width' => '90%',
-                'message_interval' => '5000',
-                'time_font_size' => '13',
-                'time_font_color' => '#ffffff',
-                'time_font_family' => '"Courier New", monospace',
-                'time_bottom' => '12',
-                'motivation_gap' => '4',
-                'messages' => '奋斗不息，成功必将到来。|不要等待机会，而要创造机会。|坚持到底，永不放弃。|付出总有回报，梦想终会实现。'
-            ];
-        }
     }
 
     /**
@@ -401,7 +343,7 @@ class Database {
     /**
      * 更新配置值
      */
-    public function updateConfig($pageType, $key, $value) {
+    public function updateConfig($key, $value) {
         if (!$this->connection) {
             return false;
         }
@@ -415,9 +357,9 @@ class Database {
                  VALUES (?, ?, ?)
                  ON DUPLICATE KEY UPDATE config_value = ?"
             );
-            return $stmt->execute([$pageType, $key, $encodedValue, $encodedValue]);
+            return $stmt->execute(['main', $key, $encodedValue, $encodedValue]);
         } catch (Throwable $e) {
-            error_log('保存配置失败: ' . $e->getMessage() . ' - Key: ' . $key . ', PageType: ' . $pageType);
+            error_log('保存配置失败: ' . $e->getMessage() . ' - Key: ' . $key . ', PageType: ' . 'main');
             return false;
         }
     }
@@ -428,7 +370,7 @@ class Database {
      * @param array $config 配置键值对，如 ['target_date' => '2027-06-07', 'messages' => '...']
      * @return bool 全部成功返回 true，任一失败自动回滚并返回 false
      */
-    public function saveConfigBatch($pageType, $config) {
+    public function saveConfigBatch($config) {
         if (!$this->connection) {
             return false;
         }
@@ -451,7 +393,7 @@ class Database {
 
             foreach ($config as $key => $value) {
                 $encodedValue = $this->encodeValue((string)$value);
-                $success = $stmt->execute([$pageType, $key, $encodedValue, $encodedValue]);
+                $success = $stmt->execute(['main', $key, $encodedValue, $encodedValue]);
                 if (!$success) {
                     throw new RuntimeException("写入配置 '$key' 失败");
                 }
@@ -463,7 +405,7 @@ class Database {
             if ($this->connection->inTransaction()) {
                 $this->connection->rollBack();
             }
-            error_log('批量保存配置失败（已回滚）: ' . $e->getMessage() . ' - PageType: ' . $pageType);
+            error_log('批量保存配置失败（已回滚）: ' . $e->getMessage() . ' - PageType: ' . 'main');
             return false;
         }
     }
@@ -715,13 +657,13 @@ class Database {
      * 将通过的名言合并到指定页面的励志话语中
      * 只合并未合并到当前页面的名言，每条名言每个页面只合并一次
      */
-    public function mergeApprovedQuotes($pageType) {
+    public function mergeApprovedQuotes() {
         if (!$this->connection) return false;
         $this->ensureSubmissionTableExists();
         try {
             // 只获取已通过、但尚未合并到当前页面的投稿
             // review_notes 格式: "merged:main;merged:seconds;" ，通过 LIKE 精确判断
-            $mergeMarker = "%merged:{$pageType};%";
+            $mergeMarker = "%merged:{'main'};%";
             $stmt = $this->connection->prepare(
                 "SELECT id, content FROM quote_submissions 
                  WHERE status = 'approved' 
@@ -734,7 +676,7 @@ class Database {
             if (empty($approvedQuotes)) return true;
 
             // 获取当前messages配置
-            $config = $this->getConfig($pageType);
+            $config = $this->getConfig('main');
             $existingMessages = explode('|', $config['messages'] ?? '');
             $existingMessages = array_map('trim', $existingMessages);
             $existingSet = array_flip($existingMessages);
@@ -769,14 +711,14 @@ class Database {
                      VALUES (?, 'messages', ?)
                      ON DUPLICATE KEY UPDATE config_value = ?"
                 );
-                $stmt2->execute([$pageType, $encoded, $encoded]);
+                $stmt2->execute(['main', $encoded, $encoded]);
             }
 
             // 标记这些投稿为已合并到当前页面
             if (!empty($mergedIds)) {
                 $placeholders = implode(',', array_fill(0, count($mergedIds), '?'));
                 $stmt3 = $this->connection->prepare(
-                    "UPDATE quote_submissions SET review_notes = CONCAT(IFNULL(review_notes,''), 'merged:{$pageType};') WHERE id IN ($placeholders)"
+                    "UPDATE quote_submissions SET review_notes = CONCAT(IFNULL(review_notes,''), 'merged:{'main'};') WHERE id IN ($placeholders)"
                 );
                 $stmt3->execute($mergedIds);
             }
