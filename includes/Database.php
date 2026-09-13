@@ -51,6 +51,7 @@ class Database {
             $this->connection = new PDO($dsnWithDb, $this->config['username'], $this->config['password']);
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            $this->applySessionTimezone();
 
             // 检查并初始化表结构
             $this->ensureTables();
@@ -91,12 +92,28 @@ class Database {
             $this->connection = new PDO($dsnWithDb, $this->config['username'], $this->config['password']);
             $this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+            $this->applySessionTimezone();
 
             // 创建表结构
             $this->createTables();
         } catch (PDOException $e) {
             // 创建失败，抛出异常
             throw new PDOException('数据库初始化失败: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 统一数据库会话时区为北京时间（UTC+8）。
+     * 主机 MySQL 默认可能是其他时区（实测为 UTC-7），会导致 NOW()/CURRENT_TIMESTAMP/
+     * FROM_UNIXTIME 与 PHP（Asia/Shanghai）不一致，进而让限流窗口、登录锁定、投稿时间出错。
+     * 该设置仅影响当前连接；若主机不允许 SET time_zone，则静默降级——
+     * 限流/锁定已改为 MySQL 内部时间差比较，不依赖此设置，仍能正确工作。
+     */
+    private function applySessionTimezone() {
+        try {
+            $this->connection->exec("SET time_zone = '+08:00'");
+        } catch (Throwable $e) {
+            error_log('设置数据库会话时区失败（已忽略，限流改用内部时间差比较）: ' . $e->getMessage());
         }
     }
 
@@ -152,13 +169,12 @@ class Database {
 
         $this->connection->exec($sql2);
 
-        // 插入默认配置（如果不存在）
-        $this->insertDefaultConfig('main');
-        $this->insertDefaultConfig('seconds');
+        // 插入默认配置（如果不存在）。主页面与秒数页面共用一套配置，统一存 page_type='main'
+        $this->insertDefaultConfig();
     }
 
     /**
-     * 插入默认配置
+     * 插入默认配置（统一配置，固定写入 page_type='main'）
      */
     private function insertDefaultConfig() {
             $defaults = [
@@ -211,7 +227,7 @@ class Database {
     public function getConfig() {
         // 如果数据库不可用，直接返回默认配置
         if (!$this->connection) {
-            return $this->getDefaultConfig('main');
+            return $this->getDefaultConfig();
         }
 
         try {
@@ -235,7 +251,7 @@ class Database {
             }
 
             // 获取默认配置并合并
-            $defaultConfig = $this->getDefaultConfig('main');
+            $defaultConfig = $this->getDefaultConfig();
             $config = array_merge($defaultConfig, $config);
 
             // 确保关键字段存在
@@ -247,7 +263,7 @@ class Database {
         } catch (Throwable $e) {
             $this->initError = $e->getMessage();
             error_log('获取配置失败: ' . $e->getMessage());
-            return $this->getDefaultConfig('main');
+            return $this->getDefaultConfig();
         }
     }
 
@@ -448,14 +464,16 @@ class Database {
         if (!$this->connection) return 0;
         $this->ensureRateLimitTables();
         try {
+            // 剩余秒数完全在 MySQL 内部计算：locked_until 由 NOW() 写入，再用 NOW() 比较，
+            // 不经过 PHP strtotime，避免 PHP 与 MySQL 时区不一致导致锁定恒不生效
             $stmt = $this->connection->prepare(
-                "SELECT locked_until FROM login_attempts WHERE ip = ?"
+                "SELECT GREATEST(TIMESTAMPDIFF(SECOND, NOW(), locked_until), 0) AS remaining
+                 FROM login_attempts WHERE ip = ?"
             );
             $stmt->execute([$ip]);
             $row = $stmt->fetch();
-            if (!$row || empty($row['locked_until'])) return 0;
-            $remaining = strtotime($row['locked_until']) - time();
-            return $remaining > 0 ? $remaining : 0;
+            if (!$row) return 0; // locked_until 为 NULL 时结果为 NULL，(int) 后为 0
+            return (int)$row['remaining'];
         } catch (Throwable $e) {
             error_log('checkLoginLocked 失败: ' . $e->getMessage());
             return 0;
@@ -516,28 +534,29 @@ class Database {
         if (!$this->connection) return true; // 数据库不可用时放行，避免误伤正常用户
         $this->ensureRateLimitTables();
         try {
+            // 窗口年龄完全在 MySQL 内部计算：window_start 由 NOW() 写入，再用 NOW() 求差，
+            // 不经过 PHP strtotime/FROM_UNIXTIME，避免 PHP 与 MySQL 时区不一致导致窗口恒判过期
             $stmt = $this->connection->prepare(
-                "SELECT count, window_start FROM rate_limits WHERE ip = ? AND action = ?"
+                "SELECT count, TIMESTAMPDIFF(SECOND, window_start, NOW()) AS age
+                 FROM rate_limits WHERE ip = ? AND action = ?"
             );
             $stmt->execute([$ip, $action]);
             $row = $stmt->fetch();
-            $now = time();
 
             if (!$row) {
                 $stmt = $this->connection->prepare(
-                    "INSERT INTO rate_limits (ip, action, count, window_start) VALUES (?, ?, 1, FROM_UNIXTIME(?))"
+                    "INSERT INTO rate_limits (ip, action, count, window_start) VALUES (?, ?, 1, NOW())"
                 );
-                $stmt->execute([$ip, $action, $now]);
+                $stmt->execute([$ip, $action]);
                 return true;
             }
 
-            $windowStart = strtotime($row['window_start']);
-            if ($now - $windowStart >= $windowSec) {
+            if ((int)$row['age'] >= $windowSec) {
                 // 窗口已过期：重置
                 $stmt = $this->connection->prepare(
-                    "UPDATE rate_limits SET count = 1, window_start = FROM_UNIXTIME(?) WHERE ip = ? AND action = ?"
+                    "UPDATE rate_limits SET count = 1, window_start = NOW() WHERE ip = ? AND action = ?"
                 );
-                $stmt->execute([$now, $ip, $action]);
+                $stmt->execute([$ip, $action]);
                 return true;
             }
 
@@ -675,8 +694,8 @@ class Database {
             $approvedQuotes = $stmt->fetchAll();
             if (empty($approvedQuotes)) return true;
 
-            // 获取当前messages配置
-            $config = $this->getConfig('main');
+            // 获取当前messages配置（主页面与秒数页面共用一套配置）
+            $config = $this->getConfig();
             $existingMessages = explode('|', $config['messages'] ?? '');
             $existingMessages = array_map('trim', $existingMessages);
             $existingSet = array_flip($existingMessages);
