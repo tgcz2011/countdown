@@ -51,78 +51,135 @@ if (!$isLoggedIn):
     <title>管理员登录</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: #0f1419;
+            --surface: #1a2029;
+            --surface-2: #232b36;
+            --border: rgba(255,255,255,0.08);
+            --text: #e8ecf1;
+            --text-dim: #8b95a3;
+            --accent: #34d399;
+            --accent-dim: rgba(52,211,153,0.12);
+            --warn: #fbbf24;
+            --danger: #f87171;
+            --mono: ui-monospace, "SF Mono", "Cascadia Code", "Courier New", monospace;
+        }
         body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+            padding: 20px;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(52,211,153,0.06) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(251,191,36,0.04) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
         }
         .login-box {
-            background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            width: 360px;
-            max-width: 90%;
+            position: relative;
+            z-index: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 40px 36px;
+            border-radius: 16px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+            width: 380px;
+            max-width: 100%;
+        }
+        .login-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: var(--accent-dim);
+            padding: 4px 10px;
+            border-radius: 999px;
+            margin-bottom: 20px;
         }
         .login-box h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 1.5rem;
+            font-size: 1.6rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.01em;
         }
         .login-box p {
-            text-align: center;
-            color: #888;
-            margin-bottom: 25px;
+            color: var(--text-dim);
+            margin-bottom: 28px;
             font-size: 0.9rem;
+            line-height: 1.5;
         }
         .login-box input[type="password"] {
             width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 5px;
+            padding: 13px 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
             font-size: 1rem;
-            margin-bottom: 15px;
+            color: var(--text);
+            margin-bottom: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
+        .login-box input[type="password"]::placeholder { color: var(--text-dim); }
         .login-box input[type="password"]:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
         }
         .login-box button {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            padding: 13px;
+            background: var(--accent);
+            color: #0a1f17;
             border: none;
-            border-radius: 5px;
+            border-radius: 10px;
             font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
-            font-weight: 500;
+            transition: background 0.2s, transform 0.1s;
         }
-        .login-box button:hover {
-            opacity: 0.9;
-        }
+        .login-box button:hover { background: #4ade80; }
+        .login-box button:active { transform: scale(0.98); }
         .error-msg {
-            color: #e74c3c;
+            color: var(--danger);
+            background: rgba(248,113,113,0.1);
+            border: 1px solid rgba(248,113,113,0.2);
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.88rem;
             text-align: center;
-            margin-bottom: 15px;
-            font-size: 0.9rem;
         }
         .hint {
             text-align: center;
-            color: #aaa;
-            margin-top: 15px;
-            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 20px;
+            font-size: 0.82rem;
         }
+        .hint a {
+            color: var(--accent);
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        .hint a:hover { opacity: 0.8; }
     </style>
 </head>
 <body>
     <div class="login-box">
+        <div class="login-badge">● 管理后台</div>
         <h1>管理员登录</h1>
-        <p>请输入管理密码进入设置页面</p>
+        <p>请输入管理密码进入倒计时设置页面</p>
         <?php if ($loginError): ?>
             <div class="error-msg"><?= htmlspecialchars($loginError) ?></div>
         <?php endif; ?>
@@ -131,7 +188,7 @@ if (!$isLoggedIn):
             <button type="submit">登录</button>
         </form>
         <div class="hint">
-            <a href="index.php" style="color: #667eea; text-decoration: none;">返回首页</a>
+            <a href="index.php">← 返回首页</a>
         </div>
     </div>
 </body>
@@ -147,337 +204,412 @@ endif;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>倒计时设置</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --bg: #0f1419;
+            --surface: #1a2029;
+            --surface-2: #232b36;
+            --surface-3: #2c3542;
+            --border: rgba(255,255,255,0.08);
+            --border-strong: rgba(255,255,255,0.14);
+            --text: #e8ecf1;
+            --text-dim: #8b95a3;
+            --text-faint: #5c6675;
+            --accent: #34d399;
+            --accent-hover: #4ade80;
+            --accent-dim: rgba(52,211,153,0.12);
+            --warn: #fbbf24;
+            --danger: #f87171;
+            --info: #60a5fa;
+            --mono: ui-monospace, "SF Mono", "Cascadia Code", "Courier New", monospace;
+            --radius: 12px;
+            --radius-sm: 8px;
         }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            padding: 20px;
+            padding: 24px 16px 60px;
+            line-height: 1.5;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: -40%; left: -30%;
+            width: 160%; height: 160%;
+            background: radial-gradient(ellipse at 25% 15%, rgba(52,211,153,0.05) 0%, transparent 45%),
+                        radial-gradient(ellipse at 75% 85%, rgba(251,191,36,0.035) 0%, transparent 45%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .container {
-            max-width: 900px;
+            position: relative;
+            z-index: 1;
+            max-width: 880px;
             margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            overflow: hidden;
         }
 
+        /* ===== Header ===== */
         .header {
-            background: linear-gradient(135deg, #00a761 0%, #00d4aa 100%);
-            color: white;
-            padding: 20px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 20px 28px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius) var(--radius) 0 0;
+            border-bottom: none;
+            flex-wrap: wrap;
+            gap: 12px;
         }
-
+        .header-left { display: flex; align-items: center; gap: 14px; }
+        .header-icon {
+            width: 40px; height: 40px;
+            background: var(--accent-dim);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem;
+        }
         .header h1 {
-            font-size: 1.8rem;
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
         }
-
-        .header a {
-            color: white;
+        .header-sub {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
+        .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+        .header-actions a {
+            color: var(--text-dim);
             text-decoration: none;
-            padding: 8px 16px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 5px;
-            transition: background 0.3s;
+            padding: 7px 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .header-actions a:hover {
+            color: var(--text);
+            background: var(--surface-3);
+            border-color: var(--border-strong);
+        }
+        .header-actions a.logout:hover {
+            color: var(--danger);
+            border-color: rgba(248,113,113,0.3);
         }
 
-        .header a:hover {
-            background: rgba(255,255,255,0.3);
-        }
-
-        /* 标签页 */
-        .tabs {
+        /* ===== Status Bar (signature element) ===== */
+        .status-bar {
             display: flex;
-            background: #f5f5f5;
-            border-bottom: 2px solid #e0e0e0;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 28px;
+            background: linear-gradient(135deg, rgba(52,211,153,0.08) 0%, rgba(52,211,153,0.02) 100%);
+            border-left: 3px solid var(--accent);
+            border-right: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .status-item { display: flex; flex-direction: column; gap: 2px; }
+        .status-label {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .status-value {
+            font-family: var(--mono);
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+        .status-value.days { font-size: 1.5rem; }
+        .status-divider {
+            width: 1px;
+            height: 36px;
+            background: var(--border);
         }
 
-        .tab {
-            flex: 1;
-            padding: 15px;
-            text-align: center;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            font-size: 1rem;
-            color: #666;
-            transition: all 0.3s;
-            font-weight: 500;
+        /* ===== Cards ===== */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-top: none;
+            padding: 24px 28px;
         }
-
-        .tab:hover {
-            background: #e8e8e8;
-        }
-
-        .tab.active {
-            background: white;
-            color: #00a761;
-            border-bottom: 3px solid #00a761;
-        }
-
-        /* 表单区域 */
-        .form-container {
-            padding: 30px;
-            display: none;
-        }
-
-        .form-container.active {
-            display: block;
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .form-group {
+        .card:last-of-type { border-radius: 0 0 var(--radius) var(--radius); }
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
             margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        .card-icon {
+            width: 32px; height: 32px;
+            background: var(--accent-dim);
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+        }
+        .card-desc {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 1px;
         }
 
+        /* ===== Form ===== */
+        .form-group { margin-bottom: 18px; }
+        .form-group:last-child { margin-bottom: 0; }
         .form-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 7px;
             font-weight: 500;
-            color: #333;
+            font-size: 0.88rem;
+            color: var(--text);
         }
-
         .form-group input[type="text"],
         .form-group input[type="number"],
         .form-group input[type="date"],
-        .form-group textarea {
+        .form-group input[type="password"],
+        .form-group textarea,
+        .form-group select {
             width: 100%;
-            padding: 10px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 5px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
+            padding: 10px 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.92rem;
+            color: var(--text);
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
-
+        .form-group input::placeholder,
+        .form-group textarea::placeholder { color: var(--text-faint); }
         .form-group input:focus,
-        .form-group textarea:focus {
+        .form-group textarea:focus,
+        .form-group select:focus {
             outline: none;
-            border-color: #00a761;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
         }
-
         .form-group textarea {
             resize: vertical;
-            min-height: 100px;
-            font-family: inherit;
+            min-height: 90px;
+            line-height: 1.6;
         }
-
+        .form-group select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b95a3' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 34px;
+        }
         .form-group small {
             display: block;
             margin-top: 5px;
-            color: #888;
-            font-size: 0.85rem;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            line-height: 1.4;
         }
-
-        .color-inputs,
-        .font-section {
-            display: flex;
-            gap: 20px;
-        }
-
-        .color-inputs .form-group,
-        .font-section .form-group {
-            flex: 1;
-        }
-
         .form-group input[type="color"] {
             width: 100%;
-            height: 40px;
-            border: 2px solid #e0e0e0;
-            border-radius: 5px;
+            height: 42px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            padding: 2px;
+            padding: 3px;
         }
+        .form-group input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+        .form-group input[type="color"]::-webkit-color-swatch { border: none; border-radius: 5px; }
 
-        /* 保存按钮 */
+        .row {
+            display: flex;
+            gap: 16px;
+        }
+        .row .form-group { flex: 1; }
+
+        /* ===== Save Button ===== */
         .btn-save {
             width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #00a761 0%, #00d4aa 100%);
-            color: white;
+            padding: 14px;
+            background: var(--accent);
+            color: #0a1f17;
             border: none;
-            border-radius: 5px;
-            font-size: 1.1rem;
-            font-weight: bold;
+            border-radius: var(--radius-sm);
+            font-size: 1rem;
+            font-weight: 700;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.2s;
+            margin-top: 8px;
+            letter-spacing: 0.02em;
         }
-
         .btn-save:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,167,97,0.3);
+            background: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(52,211,153,0.25);
         }
+        .btn-save:active { transform: translateY(0); }
 
-        .btn-save:active {
-            transform: translateY(0);
-        }
-
-        /* 分区标题 */
-        .section-title {
-            background: #f8f9fa;
-            padding: 10px 15px;
-            margin: 20px -30px 20px -30px;
-            font-weight: 600;
-            color: #333;
-            border-left: 4px solid #00a761;
-        }
-
-        /* 同步设置区域 */
-        .sync-section {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-        }
-
-        .sync-section h3 {
-            margin-bottom: 15px;
-            color: #333;
-            font-size: 1.1rem;
-        }
-
-        .sync-fields {
-            display: flex;
-            gap: 20px;
-        }
-
-        .sync-fields .form-group {
-            flex: 1;
-        }
-
-        /* 模态框（保存成功提示） */
+        /* ===== Modal ===== */
         .modal {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
             z-index: 9999;
             justify-content: center;
             align-items: center;
-            animation: fadeIn 0.3s ease;
+            padding: 20px;
         }
-
-        .modal.show {
-            display: flex;
-        }
-
+        .modal.show { display: flex; }
         .modal-content {
-            background: white;
-            padding: 30px 40px;
-            border-radius: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border-strong);
+            padding: 32px 36px;
+            border-radius: var(--radius);
             text-align: center;
-            animation: scaleIn 0.3s ease;
-            max-width: 400px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+            animation: modalIn 0.25s ease;
         }
-
-        @keyframes scaleIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
+        @keyframes modalIn {
+            from { transform: scale(0.92) translateY(10px); opacity: 0; }
+            to { transform: scale(1) translateY(0); opacity: 1; }
         }
-
         .modal-icon {
-            font-size: 3rem;
-            margin-bottom: 15px;
+            font-size: 2.5rem;
+            margin-bottom: 12px;
         }
-
         .modal-title {
-            font-size: 1.3rem;
-            color: #333;
-            margin-bottom: 10px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
         }
-
         .modal-message {
-            color: #666;
-            margin-bottom: 20px;
+            color: var(--text-dim);
+            margin-bottom: 18px;
+            font-size: 0.9rem;
         }
-
         .modal-tip {
-            background: #fff8e1;
-            color: #8a6d1a;
-            border: 1px solid #f0e0a0;
-            border-radius: 8px;
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid rgba(52,211,153,0.2);
+            border-radius: var(--radius-sm);
             padding: 10px 14px;
-            font-size: 0.85rem;
-            margin-bottom: 16px;
+            font-size: 0.82rem;
+            margin-bottom: 18px;
             text-align: left;
             line-height: 1.5;
         }
-
-        .modal-tip.green {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-color: #c8e6c9;
-        }
-
         .modal-btn {
-            padding: 10px 30px;
-            background: #00a761;
-            color: white;
+            padding: 10px 32px;
+            background: var(--accent);
+            color: #0a1f17;
             border: none;
-            border-radius: 5px;
+            border-radius: var(--radius-sm);
             cursor: pointer;
-            font-size: 1rem;
-            transition: background 0.3s;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .modal-btn:hover { background: var(--accent-hover); }
+
+        /* ===== Toast ===== */
+        .message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-20px);
+            padding: 12px 24px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            z-index: 10000;
+            opacity: 0;
+            transition: all 0.3s;
+            pointer-events: none;
+            max-width: 90%;
+        }
+        .message.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .message.error {
+            background: rgba(248,113,113,0.15);
+            color: var(--danger);
+            border: 1px solid rgba(248,113,113,0.3);
+        }
+        .message.success {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid rgba(52,211,153,0.3);
         }
 
-        .modal-btn:hover {
-            background: #00d4aa;
-        }
-
-        /* 响应式 */
-        @media (max-width: 768px) {
-            .color-inputs,
-            .font-section {
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .sync-fields {
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
-            }
-
-            .section-title {
-                margin: 20px -15px 20px -15px;
-                padding: 10px 15px;
-            }
-
-            .form-container {
-                padding: 20px 15px;
-            }
+        /* ===== Responsive ===== */
+        @media (max-width: 640px) {
+            body { padding: 12px 8px 40px; }
+            .header { padding: 16px 18px; flex-direction: column; align-items: flex-start; }
+            .header-actions { width: 100%; }
+            .header-actions a { flex: 1; justify-content: center; }
+            .status-bar { padding: 14px 18px; }
+            .status-divider { display: none; }
+            .card { padding: 18px; }
+            .row { flex-direction: column; gap: 0; }
+            .modal-content { padding: 24px 20px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>倒计时设置</h1>
-            <a href="index.php">返回首页</a>
-            <a href="admin/review.php">审核名言</a>
-            <a href="edit.php?logout=1">退出登录</a>
+            <div class="header-left">
+                <div class="header-icon">⏱</div>
+                <div>
+                    <h1>倒计时设置</h1>
+                    <div class="header-sub">管理后台 · 配置外观与内容</div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="index.php">← 返回首页</a>
+                <a href="admin/review.php">✎ 审核名言</a>
+                <a href="edit.php?logout=1" class="logout">⏻ 退出</a>
+            </div>
+        </div>
+
+        <!-- 状态条：目标日期 + 剩余天数（签名元素） -->
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">目标日期</span>
+                <span class="status-value" id="statusTargetDate">—</span>
+            </div>
+            <div class="status-divider"></div>
+            <div class="status-item">
+                <span class="status-label">距目标还有</span>
+                <span class="status-value days" id="statusDays">—</span>
+            </div>
+            <div class="status-divider"></div>
+            <div class="status-item">
+                <span class="status-label">配置状态</span>
+                <span class="status-value" id="statusConfig" style="font-size:0.88rem;color:var(--text-dim);">加载中…</span>
+            </div>
         </div>
 
         <!-- 模态框（保存成功提示） -->
@@ -497,18 +629,34 @@ endif;
 
 
         <!-- 主页面表单 -->
-        <div id="main-form" class="form-container active">
-            <form onsubmit="saveConfig(event)">
+        <form onsubmit="saveConfig(event)">
+            <!-- Card: 基础设置 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">📅</div>
+                    <div>
+                        <div class="card-title">基础设置</div>
+                        <div class="card-desc">设置倒计时目标日期</div>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label for="main_target_date">中考日期</label>
                     <input type="date" id="main_target_date" name="target_date" required>
                 </div>
+            </div>
 
-                <!-- 字体设置分区 -->
-                <div class="section-title">字体设置</div>
+            <!-- Card: 字体设置 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🔤</div>
+                    <div>
+                        <div class="card-title">字体设置</div>
+                        <div class="card-desc">标题、倒计时数字、励志话语的字体样式与云字体</div>
+                    </div>
+                </div>
 
                 <!-- 标题字体 -->
-                <div class="font-section">
+                <div class="row">
                     <div class="form-group">
                         <label for="main_title_font_size">标题字体大小 (px)</label>
                         <input type="number" id="main_title_font_size" name="title_font_size" min="12" max="200" required>
@@ -526,20 +674,17 @@ endif;
                         <small>留空使用系统默认字体</small>
                     </div>
                 </div>
-
-                <!-- 标题字体URL（云字体） -->
                 <div class="form-group">
                     <label for="main_title_font_url">标题字体URL (可选 - Google Font等)</label>
                     <input type="text" id="main_title_font_url" name="title_font_url"
-                           placeholder="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap"
-                           style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                           placeholder="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap">
                     <small>填入Google Font等CDN链接，会自动加载</small>
                 </div>
 
                 <!-- 倒计时数字字体 -->
-                <div class="font-section">
+                <div class="row">
                     <div class="form-group">
-                        <label for="main_countdown_font_size">倒计时数字字体大小 (px)</label>
+                        <label for="main_countdown_font_size">倒计时数字大小 (px)</label>
                         <input type="number" id="main_countdown_font_size" name="countdown_font_size" min="20" max="400" required>
                         <small>建议值: 40-80</small>
                     </div>
@@ -548,27 +693,24 @@ endif;
                         <input type="color" id="main_countdown_font_color" name="countdown_font_color" value="#00a761">
                     </div>
                     <div class="form-group">
-                        <label for="main_countdown_font_family">倒计时数字字体（CSS字体栈）</label>
+                        <label for="main_countdown_font_family">倒计时字体（CSS字体栈）</label>
                         <input type="text" id="main_countdown_font_family" name="countdown_font_family"
                                value="&quot;Courier New&quot;, monospace"
                                placeholder="如: Courier New, monospace">
                         <small>建议使用等宽字体</small>
                     </div>
                 </div>
-
-                <!-- 倒计时字体URL（云字体） -->
                 <div class="form-group">
                     <label for="main_countdown_font_url">倒计时字体URL (可选 - Google Font等)</label>
                     <input type="text" id="main_countdown_font_url" name="countdown_font_url"
-                           placeholder="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap"
-                           style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                           placeholder="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap">
                     <small>填入字体CDN链接，用于显示数字</small>
                 </div>
 
                 <!-- 励志话语字体 -->
-                <div class="font-section">
+                <div class="row">
                     <div class="form-group">
-                        <label for="main_message_font_size">励志话语字体大小 (px)</label>
+                        <label for="main_message_font_size">励志话语大小 (px)</label>
                         <input type="number" id="main_message_font_size" name="message_font_size" min="12" max="200" required>
                         <small>建议值: 16-24</small>
                     </div>
@@ -584,79 +726,90 @@ endif;
                         <small>建议使用易读的字体</small>
                     </div>
                 </div>
-
-                <!-- 名言字体URL（云字体） -->
                 <div class="form-group">
                     <label for="main_message_font_url">名言字体URL (可选 - Google Font等)</label>
                     <input type="text" id="main_message_font_url" name="message_font_url"
-                           placeholder="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap"
-                           style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                           placeholder="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap">
                     <small>填入字体CDN链接，用于显示励志话语</small>
                 </div>
+            </div>
 
-                <!-- 背景设置分区 -->
-                <div class="section-title">背景设置</div>
-
-                <div class="color-inputs">
+            <!-- Card: 背景设置 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">🎨</div>
+                    <div>
+                        <div class="card-title">背景设置</div>
+                        <div class="card-desc">纯色背景或自定义背景图片</div>
+                    </div>
+                </div>
+                <div class="row">
                     <div class="form-group">
                         <label for="main_bg_color">背景颜色</label>
                         <input type="color" id="main_bg_color" name="bg_color" value="#1a3a4e">
                     </div>
+                    <div class="form-group" style="flex:2;">
+                        <label for="main_bg_image">背景图片URL (可选)</label>
+                        <input type="text" id="main_bg_image" name="bg_image" placeholder="https://example.com/image.jpg">
+                        <small>留空则使用背景颜色，填写URL则显示背景图片</small>
+                    </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="main_bg_image">背景图片URL (可选)</label>
-                    <input type="text" id="main_bg_image" name="bg_image" placeholder="https://example.com/image.jpg">
-                    <small>留空则使用背景颜色，填写URL则显示背景图片</small>
-                </div>
-
                 <div class="form-group">
                     <label for="main_bg_image_mode">背景图片显示方式</label>
-                    <select id="main_bg_image_mode" name="bg_image_mode" style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                    <select id="main_bg_image_mode" name="bg_image_mode">
                         <option value="cover">覆盖 (Cover) - 图片填满屏幕，可能裁剪</option>
                         <option value="contain">包含 (Contain) - 完整显示图片，可能有黑边</option>
                     </select>
                     <small>4K高清图片建议使用"包含"模式，避免模糊</small>
                 </div>
+            </div>
 
-                <!-- 内容设置分区 -->
-                <div class="section-title">内容设置</div>
-
+            <!-- Card: 内容设置 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">💬</div>
+                    <div>
+                        <div class="card-title">内容设置</div>
+                        <div class="card-desc">励志话语、轮播节奏与布局间距</div>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label for="main_messages">励志话语（多条用 | 分隔）</label>
                     <textarea id="main_messages" name="messages" rows="4" required></textarea>
                     <small>多条话语用竖线 | 分隔，例如：话语1|话语2|话语3</small>
                 </div>
-
-                <div class="font-section">
+                <div class="row">
                     <div class="form-group">
                         <label for="main_message_container_width">名言容器宽度</label>
                         <input type="text" id="main_message_container_width" name="message_container_width"
-                               placeholder="例如: 90%, 800px, 60rem" value="90%"
-                               style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
-                        <small>控制名言显示区域的宽度，可以是百分比(90%)或固定值(800px)</small>
+                               placeholder="例如: 90%, 800px, 60rem" value="90%">
+                        <small>可以是百分比(90%)或固定值(800px)</small>
                     </div>
                     <div class="form-group">
                         <label for="main_message_interval">名言翻页间隔 (毫秒)</label>
                         <input type="number" id="main_message_interval" name="message_interval"
-                               min="1000" max="60000" step="500" value="5000"
-                               style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
+                               min="1000" max="60000" step="500" value="5000">
                         <small>每多少毫秒切换一条名言，1000毫秒=1秒</small>
                     </div>
+                    <div class="form-group">
+                        <label for="main_motivation_gap">名言与倒计时间距 (px)</label>
+                        <input type="number" id="main_motivation_gap" name="motivation_gap"
+                               min="0" max="200" step="1" value="4">
+                        <small>控制名言和倒计时之间的距离，0-200像素</small>
+                    </div>
                 </div>
+            </div>
 
-                <div class="form-group">
-                    <label for="main_motivation_gap">名言与倒计时间距 (px)</label>
-                    <input type="number" id="main_motivation_gap" name="motivation_gap"
-                           min="0" max="200" step="1" value="4"
-                           style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 5px;">
-                    <small>控制名言和倒计时之间的距离，0-200像素</small>
+            <!-- Card: 当前时间设置 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">⏰</div>
+                    <div>
+                        <div class="card-title">当前时间显示</div>
+                        <div class="card-desc">页面右下角实时时钟的样式</div>
+                    </div>
                 </div>
-
-                <!-- 当前时间设置 -->
-                <div class="section-title">当前时间设置</div>
-
-                <div class="font-section">
+                <div class="row">
                     <div class="form-group">
                         <label for="main_time_font_size">时间字体大小 (px)</label>
                         <input type="number" id="main_time_font_size" name="time_font_size" min="8" max="80" value="13">
@@ -681,8 +834,8 @@ endif;
                 </div>
 
                 <button type="submit" class="btn-save">保存设置</button>
-            </form>
-        </div>
+            </div>
+        </form>
 
     </div>
 
@@ -703,8 +856,10 @@ endif;
                 const res = await fetch('api/get_config.php');
                 mainConfig = await res.json();
                 fillForm(mainConfig);
+                updateStatusBar(mainConfig);
             } catch (error) {
                 showMessage('加载配置失败: ' + error.message, 'error');
+                updateStatusBar(null);
             }
         }
 
@@ -749,6 +904,26 @@ endif;
             document.getElementById(prefix + 'time_font_color').value = config.time_font_color || '#ffffff';
             document.getElementById(prefix + 'time_font_family').value = config.time_font_family || '"Courier New", monospace';
             document.getElementById(prefix + 'time_bottom').value = config.time_bottom || '12';
+        }
+
+        // 更新顶部状态条（目标日期 + 剩余天数）
+        function updateStatusBar(config) {
+            var dateEl = document.getElementById('statusTargetDate');
+            var daysEl = document.getElementById('statusDays');
+            var cfgEl = document.getElementById('statusConfig');
+            if (!config || !config.target_date) {
+                if (dateEl) dateEl.textContent = '—';
+                if (daysEl) daysEl.textContent = '—';
+                if (cfgEl) { cfgEl.textContent = '加载失败'; cfgEl.style.color = 'var(--danger)'; }
+                return;
+            }
+            if (dateEl) dateEl.textContent = config.target_date;
+            if (daysEl) {
+                var target = new Date(config.target_date + 'T00:00:00').getTime();
+                var days = Math.ceil((target - Date.now()) / 86400000);
+                daysEl.textContent = Math.max(0, days) + ' 天';
+            }
+            if (cfgEl) { cfgEl.textContent = '已同步'; cfgEl.style.color = 'var(--accent)'; }
         }
 
         // 保存配置（主页面与秒数页面共用一套配置）
@@ -801,6 +976,7 @@ endif;
                 if (result.success) {
                     // 更新本地配置
                     mainConfig = config;
+                    updateStatusBar(config);
 
                     // 显示成功模态框
                     showSuccessModal();
