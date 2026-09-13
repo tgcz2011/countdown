@@ -224,10 +224,11 @@ class CountdownApp {
     }
 
     /**
-     * 启动自动刷新（每60秒拉取最新配置，支持后台标签恢复和断网重连）
+     * 启动自动刷新（每小时拉取最新配置，支持后台标签恢复和断网重连）
      */
     startAutoRefresh() {
-        this.refreshInterval = setInterval(() => this.doRefresh(), 60000);
+        // 每小时静默拉取一次最新配置；切回标签页/断网恢复时仍会立即拉取
+        this.refreshInterval = setInterval(() => this.doRefresh(), 60 * 60 * 1000);
 
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) this.doRefresh();
@@ -248,36 +249,63 @@ class CountdownApp {
             const oldMessages = this.config ? this.config.messages : null;
             const oldInterval = this.config ? this.config.message_interval : null;
 
+            // loadConfig 内部保证：拉取/解析失败时 this.config 仍是旧配置（首次则为内置默认配置）
             const success = await this.loadConfig();
 
             // 获取失败时保留当前配置，不做任何视觉变更
             if (!success) return;
 
-            if (isFirstLoad) {
-                // 首次加载成功，初始化所有模块
-                this.applyStyles();
-                this.initMessages();
-            } else {
-                // 后续刷新：只在配置实际变化时更新
-                if (oldInterval !== this.config.message_interval) {
-                    this.startMessageRotation();
-                }
-                if (oldMessages !== this.config.messages) {
-                    this.messages = this.config.messages.split('|').filter(msg => msg.trim());
-                    if (this.messages.length === 0) {
-                        this.messages = ['坚持到底，永不放弃。'];
+            // 渲染与定时器对齐单独保护：任何一步异常都不能影响旧画面，更不能让页面崩溃
+            try {
+                if (isFirstLoad) {
+                    // 首次加载成功，初始化所有模块
+                    this.applyStyles();
+                    this.initMessages();
+                } else {
+                    // 后续刷新：只在配置实际变化时更新
+                    if (oldInterval !== this.config.message_interval) {
+                        this.startMessageRotation();
                     }
-                    if (this.currentMsgIndex >= this.messages.length) {
-                        this.currentMsgIndex = 0;
+                    if (oldMessages !== this.config.messages) {
+                        const parsed = (this.config.messages || '').split('|').filter(msg => msg.trim());
+                        this.messages = parsed.length ? parsed : ['坚持到底，永不放弃。'];
+                        if (this.currentMsgIndex >= this.messages.length) {
+                            this.currentMsgIndex = 0;
+                        }
+                        this.showMessage(this.currentMsgIndex);
                     }
-                    this.showMessage(this.currentMsgIndex);
+                    this.applyStyles();
                 }
-                this.applyStyles();
+                // 按最新目标时间对齐倒计时（修复"时间到"后改日期无法自动恢复）
+                this.resyncTimers();
+            } catch (renderError) {
+                console.warn('CountdownApp 应用新配置失败，保留当前画面:', renderError && renderError.message);
             }
         } catch (error) {
             console.warn('CountdownApp 刷新失败，保留当前配置:', error.message);
         } finally {
             this.isRefreshing = false;
+        }
+    }
+
+    /**
+     * 根据最新配置对齐倒计时与消息轮播状态（幂等，可反复调用）
+     * - 目标在未来：定时器若已停止（如刚从"时间到"恢复）则重启，运行中则不打断
+     * - 目标已过期/非法：停止定时器并显示"时间到"
+     */
+    resyncTimers() {
+        const target = Number(this.config.target_timestamp);
+        const inFuture = Number.isFinite(target) && target > getNow();
+
+        if (inFuture) {
+            if (!this.countdownInterval) {
+                this.startCountdown();
+            }
+            if (!this.messageInterval) {
+                this.startMessageRotation();
+            }
+        } else {
+            this.showTimeUp();
         }
     }
 
@@ -316,29 +344,35 @@ class CountdownApp {
      * @returns {boolean} 是否成功加载了新配置
      */
     async loadConfig() {
-        try {
-            const response = await fetch('api/get_config.php');
-            const data = await response.json();
-            if (data && data.error) {
-                if (this.config === null) {
-                    console.warn('首次加载API返回错误，使用默认配置:', data.message);
-                    this.config = this.getDefaultConfig();
-                } else {
-                    console.warn('API返回错误，保留当前配置:', data.message);
-                }
-                return false;
-            } else {
-                this.config = data;
-                return true;
-            }
-        } catch (error) {
+        // 回退原则：任何失败都不覆盖已有配置；仅首次（尚无配置）时使用内置默认配置，保证页面可用
+        const fallback = (msg, err) => {
             if (this.config === null) {
-                console.error('首次加载配置失败，使用默认配置:', error);
+                console.warn('首次加载配置失败，使用内置默认配置:', msg || (err && err.message));
                 this.config = this.getDefaultConfig();
             } else {
-                console.error('加载配置失败，保留当前配置:', error);
+                console.warn('加载配置失败，保留当前配置:', msg || (err && err.message));
             }
             return false;
+        };
+        try {
+            const response = await fetch('api/get_config.php');
+            if (!response || !response.ok) {
+                return fallback('HTTP ' + (response ? response.status : '无响应'));
+            }
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseErr) {
+                // 盾页/网关错误页等非 JSON 响应
+                return fallback('响应不是合法JSON', parseErr);
+            }
+            if (!data || typeof data !== 'object' || Array.isArray(data) || data.error) {
+                return fallback(data && data.message ? data.message : '配置内容无效');
+            }
+            this.config = data;
+            return true;
+        } catch (error) {
+            return fallback(null, error);
         }
     }
 
@@ -435,7 +469,8 @@ class CountdownApp {
      * 初始化励志话语
      */
     initMessages() {
-        this.messages = this.config.messages.split('|').filter(msg => msg.trim());
+        const raw = (this.config && this.config.messages) ? this.config.messages : '';
+        this.messages = raw.split('|').filter(msg => msg.trim());
         if (this.messages.length === 0) {
             this.messages = ['坚持到底，永不放弃。'];
         }
@@ -470,7 +505,10 @@ class CountdownApp {
         if (this.messageInterval) {
             clearInterval(this.messageInterval);
         }
-        const interval = parseInt(this.config.message_interval) || 5000;
+        if (!this.messages || this.messages.length === 0) {
+            this.initMessages();
+        }
+        const interval = parseInt(this.config && this.config.message_interval) || 5000;
         this.messageInterval = setInterval(() => {
             this.currentMsgIndex = (this.currentMsgIndex + 1) % this.messages.length;
             this.showMessage(this.currentMsgIndex);
@@ -482,10 +520,22 @@ class CountdownApp {
      * 启动倒计时（使用服务器时间）
      */
     startCountdown() {
-        this.updateCountdown();
-        this.countdownInterval = setInterval(() => {
+        // 幂等：已在运行则先清理，避免重复创建多个定时器
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+        }
+        this.safeTick();
+        this.countdownInterval = setInterval(() => this.safeTick(), 1000);
+    }
+
+    // 单帧渲染隔离：某一帧渲染异常不影响后续计时，绝不让定时器中断或抛到全局
+    safeTick() {
+        try {
             this.updateCountdown();
-        }, 1000);
+        } catch (err) {
+            console.warn('倒计时单帧渲染异常，已跳过本帧:', err && err.message);
+        }
     }
 
     /**
@@ -500,8 +550,13 @@ class CountdownApp {
      * 更新倒计时显示（主页面格式：天:时:分:秒，使用服务器时间）
      */
     updateCountdown() {
-        const targetTime = this.config.target_timestamp;
+        const targetTime = Number(this.config.target_timestamp);
         const now = getNow();
+        // 目标时间戳缺失/非法时按"时间到"安全降级，避免 NaN 渲染
+        if (!Number.isFinite(targetTime)) {
+            this.showTimeUp();
+            return;
+        }
         const diff = targetTime - now;
 
         if (diff <= 0) {
@@ -535,6 +590,9 @@ class CountdownApp {
     showTimeUp() {
         clearInterval(this.countdownInterval);
         clearInterval(this.messageInterval);
+        // 显式置空，供 resyncTimers 判断"定时器已停止、需要重启"
+        this.countdownInterval = null;
+        this.messageInterval = null;
         const cdEl = document.querySelector('.countdown-display');
         if (cdEl) cdEl.textContent = '时间到！';
         const mtEl = document.querySelector('.motivation-text');
@@ -573,10 +631,11 @@ class SecondsCountdownApp {
     }
 
     /**
-     * 启动自动刷新（每60秒拉取最新配置，支持后台标签恢复和断网重连）
+     * 启动自动刷新（每小时拉取最新配置，支持后台标签恢复和断网重连）
      */
     startAutoRefresh() {
-        this.refreshInterval = setInterval(() => this.doRefresh(), 60000);
+        // 每小时静默拉取一次最新配置；切回标签页/断网恢复时仍会立即拉取
+        this.refreshInterval = setInterval(() => this.doRefresh(), 60 * 60 * 1000);
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) this.doRefresh();
         });
@@ -595,28 +654,35 @@ class SecondsCountdownApp {
             const oldMessages = this.config ? this.config.messages : null;
             const oldInterval = this.config ? this.config.message_interval : null;
 
+            // loadConfig 内部保证：拉取/解析失败时 this.config 仍是旧配置（首次则为内置默认配置）
             const success = await this.loadConfig();
 
+            // 获取失败时保留当前配置，不做任何视觉变更
             if (!success) return;
 
-            if (isFirstLoad) {
-                this.applyStyles();
-                this.initMessages();
-            } else {
-                if (oldInterval !== this.config.message_interval) {
-                    this.startMessageRotation();
-                }
-                if (oldMessages !== this.config.messages) {
-                    this.messages = this.config.messages.split('|').filter(msg => msg.trim());
-                    if (this.messages.length === 0) {
-                        this.messages = ['坚持到底，永不放弃。'];
+            // 渲染与定时器对齐单独保护：任何一步异常都不能影响旧画面，更不能让页面崩溃
+            try {
+                if (isFirstLoad) {
+                    this.applyStyles();
+                    this.initMessages();
+                } else {
+                    if (oldInterval !== this.config.message_interval) {
+                        this.startMessageRotation();
                     }
-                    if (this.currentMsgIndex >= this.messages.length) {
-                        this.currentMsgIndex = 0;
+                    if (oldMessages !== this.config.messages) {
+                        const parsed = (this.config.messages || '').split('|').filter(msg => msg.trim());
+                        this.messages = parsed.length ? parsed : ['坚持到底，永不放弃。'];
+                        if (this.currentMsgIndex >= this.messages.length) {
+                            this.currentMsgIndex = 0;
+                        }
+                        this.showMessage(this.currentMsgIndex);
                     }
-                    this.showMessage(this.currentMsgIndex);
+                    this.applyStyles();
                 }
-                this.applyStyles();
+                // 按最新目标时间对齐倒计时（修复"时间到"后改日期无法自动恢复）
+                this.resyncTimers();
+            } catch (renderError) {
+                console.warn('SecondsCountdownApp 应用新配置失败，保留当前画面:', renderError && renderError.message);
             }
         } catch (error) {
             console.warn('SecondsCountdownApp 刷新失败，保留当前配置:', error.message);
@@ -626,33 +692,60 @@ class SecondsCountdownApp {
     }
 
     /**
+     * 根据最新配置对齐倒计时与消息轮播状态（幂等，可反复调用）
+     * - 目标在未来：定时器若已停止（如刚从"时间到"恢复）则重启，运行中则不打断
+     * - 目标已过期/非法：停止定时器并显示"时间到"
+     */
+    resyncTimers() {
+        const target = Number(this.config.target_timestamp);
+        const inFuture = Number.isFinite(target) && target > getNow();
+
+        if (inFuture) {
+            if (!this.countdownInterval) {
+                this.startCountdown();
+            }
+            if (!this.messageInterval) {
+                this.startMessageRotation();
+            }
+        } else {
+            this.showTimeUp();
+        }
+    }
+
+    /**
      * 从服务器加载配置
      * @returns {boolean} 是否成功加载了新配置
      */
     async loadConfig() {
-        try {
-            const response = await fetch('api/get_config.php');
-            const data = await response.json();
-            if (data && data.error) {
-                if (this.config === null) {
-                    console.warn('首次加载API返回错误，使用默认配置:', data.message);
-                    this.config = this.getDefaultConfig();
-                } else {
-                    console.warn('API返回错误，保留当前配置:', data.message);
-                }
-                return false;
-            } else {
-                this.config = data;
-                return true;
-            }
-        } catch (error) {
+        // 回退原则：任何失败都不覆盖已有配置；仅首次（尚无配置）时使用内置默认配置，保证页面可用
+        const fallback = (msg, err) => {
             if (this.config === null) {
-                console.error('首次加载配置失败，使用默认配置:', error);
+                console.warn('首次加载配置失败，使用内置默认配置:', msg || (err && err.message));
                 this.config = this.getDefaultConfig();
             } else {
-                console.error('加载配置失败，保留当前配置:', error);
+                console.warn('加载配置失败，保留当前配置:', msg || (err && err.message));
             }
             return false;
+        };
+        try {
+            const response = await fetch('api/get_config.php');
+            if (!response || !response.ok) {
+                return fallback('HTTP ' + (response ? response.status : '无响应'));
+            }
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseErr) {
+                // 盾页/网关错误页等非 JSON 响应
+                return fallback('响应不是合法JSON', parseErr);
+            }
+            if (!data || typeof data !== 'object' || Array.isArray(data) || data.error) {
+                return fallback(data && data.message ? data.message : '配置内容无效');
+            }
+            this.config = data;
+            return true;
+        } catch (error) {
+            return fallback(null, error);
         }
     }
 
@@ -766,7 +859,8 @@ class SecondsCountdownApp {
     }
 
     initMessages() {
-        this.messages = this.config.messages.split('|').filter(msg => msg.trim());
+        const raw = (this.config && this.config.messages) ? this.config.messages : '';
+        this.messages = raw.split('|').filter(msg => msg.trim());
         if (this.messages.length === 0) {
             this.messages = ['坚持到底，永不放弃。'];
         }
@@ -795,7 +889,10 @@ class SecondsCountdownApp {
         if (this.messageInterval) {
             clearInterval(this.messageInterval);
         }
-        const interval = parseInt(this.config.message_interval) || 5000;
+        if (!this.messages || this.messages.length === 0) {
+            this.initMessages();
+        }
+        const interval = parseInt(this.config && this.config.message_interval) || 5000;
         this.messageInterval = setInterval(() => {
             this.currentMsgIndex = (this.currentMsgIndex + 1) % this.messages.length;
             this.showMessage(this.currentMsgIndex);
@@ -804,10 +901,22 @@ class SecondsCountdownApp {
     }
 
     startCountdown() {
-        this.updateCountdown();
-        this.countdownInterval = setInterval(() => {
+        // 幂等：已在运行则先清理，避免重复创建多个定时器
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+        }
+        this.safeTick();
+        this.countdownInterval = setInterval(() => this.safeTick(), 1000);
+    }
+
+    // 单帧渲染隔离：某一帧渲染异常不影响后续计时，绝不让定时器中断或抛到全局
+    safeTick() {
+        try {
             this.updateCountdown();
-        }, 1000);
+        } catch (err) {
+            console.warn('倒计时单帧渲染异常，已跳过本帧:', err && err.message);
+        }
     }
 
     /**
@@ -819,8 +928,13 @@ class SecondsCountdownApp {
     }
 
     updateCountdown() {
-        const targetTime = this.config.target_timestamp;
+        const targetTime = Number(this.config.target_timestamp);
         const now = getNow();
+        // 目标时间戳缺失/非法时按"时间到"安全降级，避免 NaN 渲染
+        if (!Number.isFinite(targetTime)) {
+            this.showTimeUp();
+            return;
+        }
         const diff = targetTime - now;
 
         if (diff <= 0) {
@@ -845,6 +959,9 @@ class SecondsCountdownApp {
     showTimeUp() {
         clearInterval(this.countdownInterval);
         clearInterval(this.messageInterval);
+        // 显式置空，供 resyncTimers 判断"定时器已停止、需要重启"
+        this.countdownInterval = null;
+        this.messageInterval = null;
         const cdEl = document.querySelector('.countdown-display');
         if (cdEl) cdEl.textContent = '时间到！';
         const mtEl = document.querySelector('.motivation-text');

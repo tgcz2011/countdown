@@ -60,6 +60,8 @@ try {
 
     echo json_encode(['success' => true, 'message' => $action === 'approve' ? '已通过' : '已拒绝']);
 } catch (Throwable $e) {
+    // 详情只写服务器日志，不向客户端暴露路径/SQL/行号等内部信息
+    error_log('approve_quote.php 错误: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => '服务器错误: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => '服务器错误，请稍后重试'], JSON_UNESCAPED_UNICODE);
 }

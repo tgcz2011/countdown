@@ -14,14 +14,15 @@ try {
     $rawInput = file_get_contents('php://input');
     $data = json_decode($rawInput, true);
 
-    if (!$data || empty($data['content'])) {
+    if (!$data || empty($data['content']) || !is_string($data['content'])) {
         http_response_code(400);
         echo json_encode(['success' => false, 'message' => '请输入名言内容']);
         exit;
     }
 
+    $rawName = $data['submitter_name'] ?? '';
     $content = trim($data['content']);
-    $submitterName = trim($data['submitter_name'] ?? '');
+    $submitterName = is_string($rawName) ? trim($rawName) : '';
 
     if (mb_strlen($content) < 2) {
         http_response_code(400);
@@ -74,6 +75,8 @@ try {
         echo json_encode(['success' => false, 'message' => '投稿失败，请稍后重试']);
     }
 } catch (Throwable $e) {
+    // 详情只写服务器日志，不向客户端暴露路径/SQL/行号等内部信息
+    error_log('submit_quote.php 错误: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
     http_response_code(500);
-    echo json_encode(['success' => false, 'message' => '服务器错误: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => '服务器错误，请稍后重试'], JSON_UNESCAPED_UNICODE);
 }
