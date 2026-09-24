@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高考倒计时</title>
+    <title>中考倒计时</title>
     <link rel="stylesheet" href="css/style.css">
     <script>
         // 简单测试 - 确认JS可执行
@@ -16,7 +16,7 @@
 
     <!-- 倒计时容器 -->
     <div class="countdown-container">
-        <h1 class="countdown-title">距离高考还有</h1>
+        <h1 class="countdown-title">距离中考还有</h1>
         <div class="countdown-display">00:00:00:00</div>
     </div>
 
@@ -29,7 +29,7 @@
     <div class="current-time"></div>
 
     <!-- JavaScript -->
-    <script src="js/script.js?v=20260913a"></script>
+    <script src="js/script.js?v=20260924a"></script>
     <script>
         console.log('index.php 脚本加载完成');
     </script>
