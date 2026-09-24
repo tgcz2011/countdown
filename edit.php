@@ -835,6 +835,35 @@ endif;
 
                 <button type="submit" class="btn-save">保存设置</button>
             </div>
+
+            <!-- Card: 内容池管理 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">📚</div>
+                    <div>
+                        <div class="card-title">内容池管理</div>
+                        <div class="card-desc">多模块轮播：励志语、名人名言、社会考点与在线源，按权重混合播放</div>
+                    </div>
+                </div>
+
+                <div class="card-title" style="font-size:0.95rem; margin-bottom:4px;">模块配置</div>
+                <small style="color:var(--text-dim); display:block; margin-bottom:6px;">权重（1-100）越大出现越频繁；在线模块可改订阅源与缓存时长。励志语内容请在「内容设置」中编辑，投稿审核通过后自动加入。</small>
+                <div id="contentModules"></div>
+
+                <div class="card-title" style="font-size:0.95rem; margin:18px 0 10px;">本地内容编辑（每行一条）</div>
+                <div class="form-group">
+                    <label for="content_quote">名人名言</label>
+                    <textarea id="content_quote" rows="5" placeholder="每行一条，格式：[标签] 内容"></textarea>
+                    <small>展示为大字轮播；支持 <code>[标签] 内容</code> 格式，标签可选</small>
+                </div>
+                <div class="form-group">
+                    <label for="content_knowledge">社会考点</label>
+                    <textarea id="content_knowledge" rows="8" placeholder="每行一条，格式：[标签] 考点 :: 要点1；要点2"></textarea>
+                    <small>考点以卡片展示（标签 + 考点 + 要点），适合投影/大屏。格式：<code>[九上·道法] 改革开放的意义 :: ①强国之路 ②关键一招</code>，要点用 <code>::</code> 分隔；批量粘贴课本提纲即可，无需逐个打字</small>
+                </div>
+
+                <button type="button" class="btn-save" onclick="saveContent()">保存内容池</button>
+            </div>
         </form>
 
     </div>
@@ -848,6 +877,7 @@ endif;
         // 页面加载时获取配置
         document.addEventListener('DOMContentLoaded', async () => {
             await loadConfig();
+            loadContentAdmin();
         });
 
         // 加载配置（主页面与秒数页面共用一套配置）
@@ -1004,6 +1034,182 @@ endif;
         function closeModal() {
             const modal = document.getElementById('successModal');
             modal.classList.remove('show');
+        }
+
+        // ===== 内容池管理 =====
+        let contentModulesData = [];
+        let contentItemsData = {};
+
+        // 加载内容池配置（模块 + 本地条目）
+        async function loadContentAdmin() {
+            try {
+                const res = await fetch('api/get_content_admin.php', {headers: {'X-Auth-Token': AUTH_TOKEN}});
+                const data = await res.json();
+                if (!data || data.error || !Array.isArray(data.modules)) {
+                    throw new Error(data && data.message ? data.message : '数据无效');
+                }
+                contentModulesData = data.modules;
+                contentItemsData = data.items || {};
+                renderContentModules();
+                fillContentTextarea('content_quote', 'quote');
+                fillContentTextarea('content_knowledge', 'knowledge');
+            } catch (error) {
+                showMessage('内容池加载失败: ' + error.message, 'error');
+            }
+        }
+
+        // 渲染模块配置行
+        function renderContentModules() {
+            const box = document.getElementById('contentModules');
+            if (!box) return;
+            box.innerHTML = '';
+            contentModulesData.forEach(m => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--border);';
+
+                const nameBox = document.createElement('div');
+                nameBox.style.flex = '1';
+                nameBox.style.minWidth = '120px';
+                const name = document.createElement('div');
+                name.style.fontWeight = '600';
+                name.style.fontSize = '0.92rem';
+                name.textContent = m.module_name;
+                const typeBadge = document.createElement('small');
+                typeBadge.style.color = 'var(--text-dim)';
+                typeBadge.textContent = m.module_type === 'online' ? '在线源 · 自动获取' : '本地内容';
+                nameBox.appendChild(name);
+                nameBox.appendChild(typeBadge);
+
+                const wBox = document.createElement('div');
+                wBox.style.textAlign = 'center';
+                const wLabel = document.createElement('small');
+                wLabel.textContent = '权重';
+                const wInp = document.createElement('input');
+                wInp.type = 'number';
+                wInp.min = 1;
+                wInp.max = 100;
+                wInp.value = m.weight;
+                wInp.id = 'w_' + m.module_key;
+                wInp.style.width = '64px';
+                wBox.appendChild(wLabel);
+                wBox.appendChild(wInp);
+
+                const eBox = document.createElement('div');
+                eBox.style.textAlign = 'center';
+                const eLabel = document.createElement('small');
+                eLabel.textContent = '启用';
+                const eInp = document.createElement('input');
+                eInp.type = 'checkbox';
+                eInp.checked = !!m.enabled;
+                eInp.id = 'e_' + m.module_key;
+                eBox.appendChild(eLabel);
+                eBox.appendChild(eInp);
+
+                const uBox = document.createElement('div');
+                uBox.style.flex = '2';
+                uBox.style.minWidth = '200px';
+                const uLabel = document.createElement('small');
+                uLabel.textContent = '在线源URL（仅在线模块）';
+                const uInp = document.createElement('input');
+                uInp.type = 'text';
+                uInp.placeholder = 'https://...';
+                uInp.value = m.source_url || '';
+                uInp.id = 'u_' + m.module_key;
+                uBox.appendChild(uLabel);
+                uBox.appendChild(uInp);
+                if (m.module_type !== 'online') {
+                    uInp.disabled = true;
+                    uInp.placeholder = '本地模块无需填';
+                }
+
+                const tBox = document.createElement('div');
+                tBox.style.textAlign = 'center';
+                const tLabel = document.createElement('small');
+                tLabel.textContent = '缓存秒';
+                const tInp = document.createElement('input');
+                tInp.type = 'number';
+                tInp.min = 60;
+                tInp.max = 604800;
+                tInp.value = m.ttl_seconds;
+                tInp.id = 't_' + m.module_key;
+                tInp.style.width = '76px';
+                tBox.appendChild(tLabel);
+                tBox.appendChild(tInp);
+                if (m.module_type !== 'online') {
+                    tInp.disabled = true;
+                }
+
+                row.appendChild(nameBox);
+                row.appendChild(wBox);
+                row.appendChild(eBox);
+                row.appendChild(uBox);
+                row.appendChild(tBox);
+                box.appendChild(row);
+            });
+        }
+
+        // 条目 -> textarea 文本
+        function fillContentTextarea(elId, moduleKey) {
+            const items = contentItemsData[moduleKey] || [];
+            const lines = items.map(it => {
+                const tag = it.tag ? '[' + it.tag + '] ' : '';
+                const detail = it.detail ? ' :: ' + it.detail : '';
+                return tag + (it.content || '') + detail;
+            });
+            const el = document.getElementById(elId);
+            if (el) el.value = lines.join('\n');
+        }
+
+        // textarea 文本 -> 条目数组（每行一条：[标签] 内容 :: 要点）
+        function parseContentTextarea(text) {
+            return String(text || '').split('\n').map(line => line.trim()).filter(Boolean).map(line => {
+                let tag = '';
+                let rest = line;
+                const tagMatch = rest.match(/^\[([^\]]+)\]\s*(.*)$/);
+                if (tagMatch) {
+                    tag = tagMatch[1].trim();
+                    rest = tagMatch[2].trim();
+                }
+                let content = rest;
+                let detail = '';
+                const idx = rest.indexOf('::');
+                if (idx >= 0) {
+                    content = rest.slice(0, idx).trim();
+                    detail = rest.slice(idx + 2).trim();
+                }
+                return {content: content, tag: tag || null, detail: detail || null};
+            }).filter(it => it.content);
+        }
+
+        // 保存内容池
+        async function saveContent() {
+            const modules = contentModulesData.map(m => ({
+                module_key: m.module_key,
+                weight: parseInt(document.getElementById('w_' + m.module_key).value, 10) || 10,
+                enabled: document.getElementById('e_' + m.module_key).checked ? 1 : 0,
+                source_url: document.getElementById('u_' + m.module_key).value.trim() || null,
+                source_type: m.source_type || null,
+                ttl_seconds: parseInt(document.getElementById('t_' + m.module_key).value, 10) || 86400
+            }));
+            const items = {
+                quote: parseContentTextarea(document.getElementById('content_quote').value),
+                knowledge: parseContentTextarea(document.getElementById('content_knowledge').value)
+            };
+            try {
+                const response = await fetch('api/save_content.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-Auth-Token': AUTH_TOKEN},
+                    body: JSON.stringify({modules: modules, items: items})
+                });
+                const result = await response.json();
+                if (result.success) {
+                    showMessage('内容池已保存，打开倒计时页面即可生效', 'success');
+                } else {
+                    showMessage('保存失败: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showMessage('保存失败: ' + error.message, 'error');
+            }
         }
 
         // 显示错误消息

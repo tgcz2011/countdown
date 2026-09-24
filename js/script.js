@@ -203,6 +203,9 @@ class CountdownApp {
         this.timeInterval = null;
         this.isRefreshing = false;     // 互斥锁，防止并发刷新
         this.showTimeout = null;       // 用于取消前一个 showMessage 的 setTimeout
+        this.contentPool = null;       // 多模块内容池（get_content.php）：[{module_key,module_name,weight,items:[...]}]
+        this.poolCursors = {};         // 各模块播放游标
+        this.poolTotalWeight = 0;      // 模块权重总和
     }
 
     /**
@@ -220,6 +223,7 @@ class CountdownApp {
             this.startMessageRotation();
             this.startTimeDisplay();
             this.startAutoRefresh();
+            this.loadContent();
         }, 100);
     }
 
@@ -278,6 +282,8 @@ class CountdownApp {
                 }
                 // 按最新目标时间对齐倒计时（修复"时间到"后改日期无法自动恢复）
                 this.resyncTimers();
+                // 内容池静默刷新：失败自动回退本地轮播，不影响任何现有画面
+                this.loadContent();
             } catch (renderError) {
                 console.warn('CountdownApp 应用新配置失败，保留当前画面:', renderError && renderError.message);
             }
@@ -478,6 +484,111 @@ class CountdownApp {
     }
 
     /**
+     * 加载多模块内容池（get_content.php）
+     * 回退铁律：任何失败都不启用内容池，继续沿用本地 messages 轮播，页面绝不崩溃
+     * @returns {boolean} 是否成功加载
+     */
+    async loadContent() {
+        try {
+            const response = await fetch('api/get_content.php?_=' + Date.now());
+            if (!response || !response.ok) {
+                console.warn('内容池加载失败: HTTP ' + (response ? response.status : '无响应'));
+                return false;
+            }
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseErr) {
+                console.warn('内容池响应不是合法JSON:', parseErr && parseErr.message);
+                return false;
+            }
+            if (!data || typeof data !== 'object' || Array.isArray(data) || data.error || !Array.isArray(data.modules)) {
+                console.warn('内容池数据无效');
+                return false;
+            }
+            const pool = data.modules.filter(m => m && Array.isArray(m.items) && m.items.length > 0);
+            if (pool.length === 0) {
+                console.warn('内容池无可用模块，沿用本地轮播');
+                return false;
+            }
+            this.contentPool = pool;
+            this.poolCursors = {};
+            this.poolTotalWeight = 0;
+            pool.forEach(m => {
+                this.poolCursors[m.module_key] = 0;
+                this.poolTotalWeight += (Number(m.weight) > 0 ? Number(m.weight) : 1);
+            });
+            console.log('内容池已加载:', pool.length, '个模块,', pool.reduce((s, m) => s + m.items.length, 0), '条内容');
+            this.showNextContent();
+            return true;
+        } catch (error) {
+            console.warn('内容池加载异常，沿用本地轮播:', error && error.message);
+            return false;
+        }
+    }
+
+    /**
+     * 加权随机抽取下一帧内容（权重越大出现越频繁；模块内顺序播放）
+     */
+    showNextContent() {
+        if (!this.contentPool || this.contentPool.length === 0) return;
+        let r = Math.random() * this.poolTotalWeight;
+        let chosen = this.contentPool[0];
+        for (const m of this.contentPool) {
+            r -= (Number(m.weight) > 0 ? Number(m.weight) : 1);
+            if (r <= 0) { chosen = m; break; }
+        }
+        const items = chosen.items;
+        let idx = this.poolCursors[chosen.module_key] || 0;
+        if (idx >= items.length) idx = 0;
+        this.poolCursors[chosen.module_key] = idx + 1;
+        this.renderContentItem(chosen, items[idx]);
+    }
+
+    /**
+     * 渲染单条内容（考点模块用标签+要点卡片，其余模块用大字文本）
+     */
+    renderContentItem(module, item) {
+        const element = document.querySelector('.motivation-text');
+        if (!element || !item) return;
+
+        if (this.showTimeout) {
+            clearTimeout(this.showTimeout);
+        }
+
+        element.classList.add('fade-out');
+
+        this.showTimeout = setTimeout(() => {
+            element.innerHTML = '';
+            if (module.module_key === 'knowledge') {
+                const card = document.createElement('div');
+                card.className = 'knowledge-card';
+                if (item.tag) {
+                    const tag = document.createElement('span');
+                    tag.className = 'knowledge-tag';
+                    tag.textContent = item.tag;
+                    card.appendChild(tag);
+                }
+                const body = document.createElement('div');
+                body.className = 'knowledge-content';
+                body.appendChild(sanitizeHtml(item.content || ''));
+                card.appendChild(body);
+                if (item.detail) {
+                    const detail = document.createElement('div');
+                    detail.className = 'knowledge-detail';
+                    detail.appendChild(sanitizeHtml(item.detail));
+                    card.appendChild(detail);
+                }
+                element.appendChild(card);
+            } else {
+                element.appendChild(sanitizeHtml(item.content || ''));
+            }
+            element.classList.remove('fade-out');
+            this.showTimeout = null;
+        }, 800);
+    }
+
+    /**
      * 显示指定索引的励志话语（支持HTML渲染）
      */
     showMessage(index) {
@@ -510,8 +621,16 @@ class CountdownApp {
         }
         const interval = parseInt(this.config && this.config.message_interval) || 5000;
         this.messageInterval = setInterval(() => {
-            this.currentMsgIndex = (this.currentMsgIndex + 1) % this.messages.length;
-            this.showMessage(this.currentMsgIndex);
+            try {
+                if (this.contentPool && this.contentPool.length > 0) {
+                    this.showNextContent();
+                } else {
+                    this.currentMsgIndex = (this.currentMsgIndex + 1) % this.messages.length;
+                    this.showMessage(this.currentMsgIndex);
+                }
+            } catch (tickError) {
+                console.warn('名言轮播单帧异常已隔离:', tickError && tickError.message);
+            }
         }, interval);
         console.log('主页面名言翻页间隔:', interval, '毫秒');
     }
@@ -613,6 +732,9 @@ class SecondsCountdownApp {
         this.timeInterval = null;
         this.isRefreshing = false;
         this.showTimeout = null;
+        this.contentPool = null;       // 多模块内容池（get_content.php）
+        this.poolCursors = {};         // 各模块播放游标
+        this.poolTotalWeight = 0;      // 模块权重总和
     }
 
     async init() {
@@ -627,6 +749,7 @@ class SecondsCountdownApp {
             this.startMessageRotation();
             this.startTimeDisplay();
             this.startAutoRefresh();
+            this.loadContent();
         }, 100);
     }
 
@@ -681,6 +804,8 @@ class SecondsCountdownApp {
                 }
                 // 按最新目标时间对齐倒计时（修复"时间到"后改日期无法自动恢复）
                 this.resyncTimers();
+                // 内容池静默刷新：失败自动回退本地轮播，不影响任何现有画面
+                this.loadContent();
             } catch (renderError) {
                 console.warn('SecondsCountdownApp 应用新配置失败，保留当前画面:', renderError && renderError.message);
             }
@@ -867,6 +992,111 @@ class SecondsCountdownApp {
         this.showMessage(0);
     }
 
+    /**
+     * 加载多模块内容池（get_content.php）
+     * 回退铁律：任何失败都不启用内容池，继续沿用本地 messages 轮播，页面绝不崩溃
+     * @returns {boolean} 是否成功加载
+     */
+    async loadContent() {
+        try {
+            const response = await fetch('api/get_content.php?_=' + Date.now());
+            if (!response || !response.ok) {
+                console.warn('内容池加载失败: HTTP ' + (response ? response.status : '无响应'));
+                return false;
+            }
+            let data;
+            try {
+                data = await response.json();
+            } catch (parseErr) {
+                console.warn('内容池响应不是合法JSON:', parseErr && parseErr.message);
+                return false;
+            }
+            if (!data || typeof data !== 'object' || Array.isArray(data) || data.error || !Array.isArray(data.modules)) {
+                console.warn('内容池数据无效');
+                return false;
+            }
+            const pool = data.modules.filter(m => m && Array.isArray(m.items) && m.items.length > 0);
+            if (pool.length === 0) {
+                console.warn('内容池无可用模块，沿用本地轮播');
+                return false;
+            }
+            this.contentPool = pool;
+            this.poolCursors = {};
+            this.poolTotalWeight = 0;
+            pool.forEach(m => {
+                this.poolCursors[m.module_key] = 0;
+                this.poolTotalWeight += (Number(m.weight) > 0 ? Number(m.weight) : 1);
+            });
+            console.log('秒数页面内容池已加载:', pool.length, '个模块,', pool.reduce((s, m) => s + m.items.length, 0), '条内容');
+            this.showNextContent();
+            return true;
+        } catch (error) {
+            console.warn('内容池加载异常，沿用本地轮播:', error && error.message);
+            return false;
+        }
+    }
+
+    /**
+     * 加权随机抽取下一帧内容（权重越大出现越频繁；模块内顺序播放）
+     */
+    showNextContent() {
+        if (!this.contentPool || this.contentPool.length === 0) return;
+        let r = Math.random() * this.poolTotalWeight;
+        let chosen = this.contentPool[0];
+        for (const m of this.contentPool) {
+            r -= (Number(m.weight) > 0 ? Number(m.weight) : 1);
+            if (r <= 0) { chosen = m; break; }
+        }
+        const items = chosen.items;
+        let idx = this.poolCursors[chosen.module_key] || 0;
+        if (idx >= items.length) idx = 0;
+        this.poolCursors[chosen.module_key] = idx + 1;
+        this.renderContentItem(chosen, items[idx]);
+    }
+
+    /**
+     * 渲染单条内容（考点模块用标签+要点卡片，其余模块用大字文本）
+     */
+    renderContentItem(module, item) {
+        const element = document.querySelector('.motivation-text');
+        if (!element || !item) return;
+
+        if (this.showTimeout) {
+            clearTimeout(this.showTimeout);
+        }
+
+        element.classList.add('fade-out');
+
+        this.showTimeout = setTimeout(() => {
+            element.innerHTML = '';
+            if (module.module_key === 'knowledge') {
+                const card = document.createElement('div');
+                card.className = 'knowledge-card';
+                if (item.tag) {
+                    const tag = document.createElement('span');
+                    tag.className = 'knowledge-tag';
+                    tag.textContent = item.tag;
+                    card.appendChild(tag);
+                }
+                const body = document.createElement('div');
+                body.className = 'knowledge-content';
+                body.appendChild(sanitizeHtml(item.content || ''));
+                card.appendChild(body);
+                if (item.detail) {
+                    const detail = document.createElement('div');
+                    detail.className = 'knowledge-detail';
+                    detail.appendChild(sanitizeHtml(item.detail));
+                    card.appendChild(detail);
+                }
+                element.appendChild(card);
+            } else {
+                element.appendChild(sanitizeHtml(item.content || ''));
+            }
+            element.classList.remove('fade-out');
+            this.showTimeout = null;
+        }, 800);
+    }
+
     showMessage(index) {
         const element = document.querySelector('.motivation-text');
         if (!element) return;
@@ -894,8 +1124,16 @@ class SecondsCountdownApp {
         }
         const interval = parseInt(this.config && this.config.message_interval) || 5000;
         this.messageInterval = setInterval(() => {
-            this.currentMsgIndex = (this.currentMsgIndex + 1) % this.messages.length;
-            this.showMessage(this.currentMsgIndex);
+            try {
+                if (this.contentPool && this.contentPool.length > 0) {
+                    this.showNextContent();
+                } else {
+                    this.currentMsgIndex = (this.currentMsgIndex + 1) % this.messages.length;
+                    this.showMessage(this.currentMsgIndex);
+                }
+            } catch (tickError) {
+                console.warn('名言轮播单帧异常已隔离:', tickError && tickError.message);
+            }
         }, interval);
         console.log('秒数页面名言翻页间隔:', interval, '毫秒');
     }

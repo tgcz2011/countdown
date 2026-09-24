@@ -29,7 +29,7 @@
     <div class="current-time"></div>
 
     <!-- JavaScript -->
-    <script src="js/script.js?v=20260913a"></script>
+    <script src="js/script.js?v=20260924a"></script>
     <script>
         console.log('index.php 脚本加载完成');
     </script>
